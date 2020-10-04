@@ -13,6 +13,7 @@ const (
 	SQLiteIndexScanner = "sqlite_index_scanner"
 
 	VarPrefix        = "$prefix$"
+	VarEngine        = "$engine$"
 	VarAutoIncrement = "$auto_increment$"
 	VarLocate        = "$locate$"
 
@@ -38,7 +39,7 @@ type DB struct {
 	isSQLite                   bool
 	compiledStatements         map[string]*sql.Stmt
 	vars                       map[string]string
-	tableDefs                  map[string]string
+	tableDefs                  []string
 	registeredStatements       map[string]string
 	registeredSQLiteStatements map[string]string
 	registeredMySQLStatements  map[string]string
@@ -65,6 +66,7 @@ func Create(dsn string) (*DB, error) {
 		dao.dialect = "sqlite3"
 		dao.SetVariable(VarLocate, "instr")
 		dao.SetVariable(VarAutoIncrement, "AUTOINCREMENT")
+		dao.SetVariable(VarEngine, "")
 		if _, err := dao.sqlDb.Exec("PRAGMA foreign_keys=ON"); err != nil {
 			return nil, err
 		}
@@ -82,6 +84,7 @@ func Create(dsn string) (*DB, error) {
 		dao.dialect = "mysql"
 		dao.SetVariable(VarLocate, "locate")
 		dao.SetVariable(VarAutoIncrement, "AUTO_INCREMENT")
+		dao.SetVariable(VarEngine, "engine=InnoDB")
 		return dao, nil
 
 	} else {
@@ -249,11 +252,8 @@ func (dao *DB) AddUniqueIndex(index SQLIndex, forceUpdate bool) error {
 	return nil
 }
 
-func (dao *DB) AddTableDefinition(name string, schema string) *DB {
-	if dao.tableDefs == nil {
-		dao.tableDefs = map[string]string{}
-	}
-	dao.tableDefs[name] = schema
+func (dao *DB) AddTableDefinition(schema string) *DB {
+	dao.tableDefs = append(dao.tableDefs, schema)
 	return dao
 }
 
@@ -343,7 +343,7 @@ func (dao *DB) RawQuery(query string, scannerName string, params ...interface{})
 	return NewSQLDBCursor(rows, scanner), nil
 }
 
-func (dao *DB) RawQueryOne(query string, scannerName string, params ...interface{}) (interface{}, error) {
+func (dao *DB) RawQueryFirst(query string, scannerName string, params ...interface{}) (interface{}, error) {
 	for name, value := range dao.vars {
 		query = strings.Replace(query, name, value, -1)
 	}
@@ -407,7 +407,7 @@ func (dao *DB) Query(stmt string, scannerName string, params ...interface{}) (DB
 	return cursor, nil
 }
 
-func (dao *DB) QueryOne(stmt string, scannerName string, params ...interface{}) (interface{}, error) {
+func (dao *DB) QueryFirst(stmt string, scannerName string, params ...interface{}) (interface{}, error) {
 	dao.rLock()
 	defer dao.rUnLock()
 

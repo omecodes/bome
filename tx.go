@@ -2,7 +2,7 @@ package bome
 
 import (
 	"database/sql"
-	"github.com/omecodes/common/errors"
+	"errors"
 )
 
 type TX struct {
@@ -57,7 +57,7 @@ func (tx *TX) SQueryFirst(saved string, scannerName string, args ...interface{})
 	}()
 
 	if !cursor.HasNext() {
-		return nil, errors.NotFound
+		return nil, EntryNotFound
 	}
 	return cursor.Next()
 }
