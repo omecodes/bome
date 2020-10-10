@@ -3,7 +3,7 @@ package bome
 // Map is a convenience for persistent string to string dict
 type Map interface {
 	Save(entry *MapEntry) error
-	Read(key string) (string), error)
+	Read(key string) (string, error)
 	Contains(key string) (bool, error)
 	Delete(key string) error
 	List() (Cursor, error)
