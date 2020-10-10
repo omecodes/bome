@@ -2,7 +2,7 @@ package bome
 
 // DoubleMap is a convenience for double mapping persistent store
 type DoubleMap interface {
-	Set(m *DoubleMapEntry) error
+	Save(m *DoubleMapEntry) error
 	Get(firstKey, secondKey string) (string, error)
 	GetForFirst(firstKey string) (Cursor, error)
 	GetForSecond(secondKey string) (Cursor, error)
@@ -18,7 +18,7 @@ type sqlPairMap struct {
 	*DB
 }
 
-func (s *sqlPairMap) Set(m *DoubleMapEntry) error {
+func (s *sqlPairMap) Save(m *DoubleMapEntry) error {
 	if s.Exec("insert", m.FirstKey, m.SecondKey, m.Value).Error != nil {
 		return s.Exec("update", m.Value, m.FirstKey, m.SecondKey).Error
 	}

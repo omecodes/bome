@@ -3,7 +3,7 @@ package bome
 // Map is a convenience for persistent string to string dict
 type Map interface {
 	Save(entry *MapEntry) error
-	Read(key string) (string, error)
+	Get(key string) (string, error)
 	Contains(key string) (bool, error)
 	Delete(key string) error
 	List() (Cursor, error)
@@ -23,7 +23,7 @@ func (s *sqlObjects) Save(entry *MapEntry) error {
 	return err
 }
 
-func (s *sqlObjects) Read(key string) (string, error) {
+func (s *sqlObjects) Get(key string) (string, error) {
 	o, err := s.QueryFirst("select", MapEntrySCanner, key)
 	if err != nil {
 		return "", err
