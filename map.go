@@ -23,12 +23,13 @@ func (s *sqlObjects) Save(entry *MapEntry) error {
 	return err
 }
 
-func (s *sqlObjects) Read(key string) (*MapEntry, error) {
+func (s *sqlObjects) Read(key string) (string, error) {
 	o, err := s.QueryFirst("select", MapEntrySCanner, key)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	return o.(*MapEntry), nil
+	entry := o.(*MapEntry)
+	return entry.Value, nil
 }
 
 func (s *sqlObjects) Contains(key string) (bool, error) {
@@ -65,6 +66,7 @@ func NewSQLMap(dsn string, name string) (Map, error) {
 	if err != nil {
 		return nil, nil
 	}
+	d.DB = db
 
 	d.SetTablePrefix(name).
 		AddTableDefinition("create table if not exists $prefix$_map (name varchar(255) not null primary key, val longblob not null);").
