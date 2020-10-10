@@ -83,7 +83,7 @@ func Open(dsn string) (*Bome, error) {
 		return dbome, nil
 
 	} else if u.Scheme == "mysql" {
-		db, err := sql.Open("sqlite3", strings.TrimPrefix(dsn, "mysql://"))
+		db, err := sql.Open("mysql", strings.TrimPrefix(dsn, "mysql://"))
 		if err != nil {
 			return nil, err
 		}

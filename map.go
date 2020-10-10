@@ -13,20 +13,20 @@ type Map interface {
 	Close() error
 }
 
-type sqlObjects struct {
+type dict struct {
 	*Bome
 }
 
-func (s *sqlObjects) Save(entry *MapEntry) error {
-	err := s.Exec("insert", entry.Key, entry.Value).Error
+func (d *dict) Save(entry *MapEntry) error {
+	err := d.Exec("insert", entry.Key, entry.Value).Error
 	if err != nil {
-		err = s.Exec("update", entry.Value, entry.Key).Error
+		err = d.Exec("update", entry.Value, entry.Key).Error
 	}
 	return err
 }
 
-func (s *sqlObjects) Get(key string) (string, error) {
-	o, err := s.QueryFirst("select", MapEntrySCanner, key)
+func (d *dict) Get(key string) (string, error) {
+	o, err := d.QueryFirst("select", MapEntrySCanner, key)
 	if err != nil {
 		return "", err
 	}
@@ -34,8 +34,8 @@ func (s *sqlObjects) Get(key string) (string, error) {
 	return entry.Value, nil
 }
 
-func (s *sqlObjects) Contains(key string) (bool, error) {
-	res, err := s.QueryFirst("contains", BoolScanner, key)
+func (d *dict) Contains(key string) (bool, error) {
+	res, err := d.QueryFirst("contains", BoolScanner, key)
 	if err != nil {
 		if IsNotFound(err) {
 			return false, nil
@@ -45,25 +45,25 @@ func (s *sqlObjects) Contains(key string) (bool, error) {
 	return res.(bool), nil
 }
 
-func (s *sqlObjects) Delete(key string) error {
-	return s.Exec("delete", key).Error
+func (d *dict) Delete(key string) error {
+	return d.Exec("delete", key).Error
 }
 
-func (s *sqlObjects) List() (Cursor, error) {
-	return s.Query("select_all", MapEntrySCanner)
+func (d *dict) List() (Cursor, error) {
+	return d.Query("select_all", MapEntrySCanner)
 }
 
-func (s *sqlObjects) Clear() error {
-	return s.Exec("clear").Error
+func (d *dict) Clear() error {
+	return d.Exec("clear").Error
 }
 
-func (s *sqlObjects) Close() error {
-	return s.Bome.sqlDb.Close()
+func (d *dict) Close() error {
+	return d.Bome.sqlDb.Close()
 }
 
 // NewSQLMap creates an sql map which entries are store in a table that have name created with concataning name and '_map'
 func NewSQLMap(dsn string, name string) (Map, error) {
-	d := new(sqlObjects)
+	d := new(dict)
 	db, err := Open(dsn)
 	if err != nil {
 		return nil, nil
@@ -82,14 +82,22 @@ func NewSQLMap(dsn string, name string) (Map, error) {
 	return d, d.Init()
 }
 
-// NewBomeMap creates MySQL wrapped Map
-func NewBomeMap(db *sql.DB, name string) (Map, error) {
-	d := new(sqlObjects)
-	dbome, err := New(db)
-	if err != nil {
-		return nil, nil
+// MapFromSQLDB creates MySQL wrapped map
+func MapFromSQLDB(dialect string, db *sql.DB, name string) (Map, error) {
+	d := new(dict)
+	var err error
+
+	if dialect == SQLite3 {
+		d.Bome, err = NewLite(db)
+	} else if dialect == MySQL {
+		d.Bome, err = New(db)
+	} else {
+		return nil, DialectNotSupported
 	}
-	d.Bome = dbome
+
+	if err != nil {
+		return nil, err
+	}
 
 	d.SetTablePrefix(name).
 		AddTableDefinition("create table if not exists $prefix$_map (name varchar(255) not null primary key, val longblob not null);").

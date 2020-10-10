@@ -98,15 +98,19 @@ func NewSQLDoubleMap(dsn string, name string) (DoubleMap, error) {
 	return d, err
 }
 
-// NewBomeDoubleMap creates MySQL wrapped DoubleMap
-func NewBomeDoubleMap(db *sql.DB, name string) (Map, error) {
-	d := new(sqlObjects)
-	dbome, err := New(db)
-	if err != nil {
-		return nil, nil
+// DMapFromSQLDB creates MySQL wrapped DoubleMap
+func DMapFromSQLDB(dialect string, db *sql.DB, name string) (DoubleMap, error) {
+	d := new(sqlPairMap)
+	var err error
+
+	if dialect == SQLite3 {
+		d.Bome, err = NewLite(db)
+	} else if dialect == MySQL {
+		d.Bome, err = New(db)
+	} else {
+		return nil, DialectNotSupported
 	}
 
-	d.Bome = dbome
 	d.SetTablePrefix(name).
 		AddTableDefinition("create table if not exists $prefix$_map (first_key varchar(255) not null, second_key varchar(255) not null, val longblob not null);").
 		AddStatement("insert", "insert into $prefix$_mapping values (?, ?, ?);").

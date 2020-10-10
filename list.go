@@ -102,14 +102,22 @@ func NewSQLList(dsn, name string) (List, error) {
 	return d, d.Init()
 }
 
-// NewBomeList creates MySQL wrapped list
-func NewBomeList(db *sql.DB, name string) (Map, error) {
-	d := new(sqlObjects)
-	dbome, err := New(db)
-	if err != nil {
-		return nil, nil
+// ListFromSQLDB creates MySQL wrapped list
+func ListFromSQLDB(dialect string, db *sql.DB, name string) (List, error) {
+	d := new(listDB)
+	var err error
+
+	if dialect == SQLite3 {
+		d.Bome, err = NewLite(db)
+	} else if dialect == MySQL {
+		d.Bome, err = New(db)
+	} else {
+		return nil, DialectNotSupported
 	}
-	d.Bome = dbome
+
+	if err != nil {
+		return nil, err
+	}
 
 	d.SetTablePrefix(name).
 		AddTableDefinition("create table if not exists $prefix$_list (ind int not null primary key $auto_increment$, encoded longblob not null);").
