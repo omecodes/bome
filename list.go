@@ -1,5 +1,7 @@
 package bome
 
+import "database/sql"
+
 // List is a convenience for persistence list
 type List interface {
 	Append(*ListEntry) error
@@ -15,7 +17,7 @@ type List interface {
 }
 
 type listDB struct {
-	*DB
+	*Bome
 }
 
 func (l *listDB) Append(entry *ListEntry) error {
@@ -75,17 +77,39 @@ func (l *listDB) Clear() error {
 }
 
 func (l *listDB) Close() error {
-	return l.DB.sqlDb.Close()
+	return l.Bome.sqlDb.Close()
 }
 
 // NewSQLList create an sql list by wrapping a sql database connexion
 func NewSQLList(dsn, name string) (List, error) {
 	d := new(listDB)
 	var err error
-	d.DB, err = Create(dsn)
+	d.Bome, err = Open(dsn)
 	if err != nil {
 		return nil, err
 	}
+
+	d.SetTablePrefix(name).
+		AddTableDefinition("create table if not exists $prefix$_list (ind int not null primary key $auto_increment$, encoded longblob not null);").
+		AddStatement("insert", "insert into $prefix$_list (encoded) values (?);").
+		AddStatement("select", "select * from $prefix$_list where ind=?;").
+		AddStatement("select_min_index", "select min(ind) from $prefix$_list;").
+		AddStatement("select_max_index", "select max(ind) from $prefix$_list;").
+		AddStatement("select_count", "select count(ind) from $prefix$_list;").
+		AddStatement("select_from", "select * from $prefix$_list where ind>? order by ind;").
+		AddStatement("delete_by_seq", "delete from $prefix$_list where ind=?;").
+		AddStatement("clear", "delete from $prefix$_list;")
+	return d, d.Init()
+}
+
+// NewBomeList creates MySQL wrapped list
+func NewBomeList(db *sql.DB, name string) (Map, error) {
+	d := new(sqlObjects)
+	dbome, err := New(db)
+	if err != nil {
+		return nil, nil
+	}
+	d.Bome = dbome
 
 	d.SetTablePrefix(name).
 		AddTableDefinition("create table if not exists $prefix$_list (ind int not null primary key $auto_increment$, encoded longblob not null);").

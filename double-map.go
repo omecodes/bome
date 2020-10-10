@@ -1,5 +1,7 @@
 package bome
 
+import "database/sql"
+
 // DoubleMap is a convenience for double mapping persistent store
 type DoubleMap interface {
 	Save(m *DoubleMapEntry) error
@@ -15,7 +17,7 @@ type DoubleMap interface {
 }
 
 type sqlPairMap struct {
-	*DB
+	*Bome
 }
 
 func (s *sqlPairMap) Save(m *DoubleMapEntry) error {
@@ -62,18 +64,18 @@ func (s *sqlPairMap) Clear() error {
 }
 
 func (s *sqlPairMap) Close() error {
-	return s.DB.sqlDb.Close()
+	return s.Bome.sqlDb.Close()
 }
 
 // NewSQLDoubleMap creates an sql double map
 func NewSQLDoubleMap(dsn string, name string) (DoubleMap, error) {
 	d := new(sqlPairMap)
-	db, err := Create(dsn)
+	db, err := Open(dsn)
 	if err != nil {
 		return nil, err
 	}
 
-	d.DB = db
+	d.Bome = db
 	d.SetTablePrefix(name).
 		AddTableDefinition("create table if not exists $prefix$_map (first_key varchar(255) not null, second_key varchar(255) not null, val longblob not null);").
 		AddStatement("insert", "insert into $prefix$_mapping values (?, ?, ?);").
@@ -92,6 +94,37 @@ func NewSQLDoubleMap(dsn string, name string) (DoubleMap, error) {
 		return nil, err
 	}
 
-	err = d.AddUniqueIndex(SQLIndex{Name: "unique_keys", Table: "$prefix$_mapping", Fields: []string{"first_key", "second_key"}}, false)
+	err = d.AddUniqueIndex(Index{Name: "unique_keys", Table: "$prefix$_mapping", Fields: []string{"first_key", "second_key"}}, false)
+	return d, err
+}
+
+// NewBomeDoubleMap creates MySQL wrapped DoubleMap
+func NewBomeDoubleMap(db *sql.DB, name string) (Map, error) {
+	d := new(sqlObjects)
+	dbome, err := New(db)
+	if err != nil {
+		return nil, nil
+	}
+
+	d.Bome = dbome
+	d.SetTablePrefix(name).
+		AddTableDefinition("create table if not exists $prefix$_map (first_key varchar(255) not null, second_key varchar(255) not null, val longblob not null);").
+		AddStatement("insert", "insert into $prefix$_mapping values (?, ?, ?);").
+		AddStatement("update", "update $prefix$_mapping set val=? where first_key=? and second_key=?;").
+		AddStatement("select", "select * from $prefix$_mapping where first_key=? and second_key=?;").
+		AddStatement("select_by_first_key", "select second_key, val from $prefix$_mapping where first_key=?;").
+		AddStatement("select_by_second_key", "select first_key, val from $prefix$_mapping where second_key=?;").
+		AddStatement("select_all", "select * from $prefix$_mapping;").
+		AddStatement("delete", "delete from $prefix$_mapping where first_key=?;").
+		AddStatement("delete_by_first_key", "delete from $prefix$_mapping where first_key=?;").
+		AddStatement("delete_by_second_key", "delete from $prefix$_mapping where second_key=?;").
+		AddStatement("clear", "delete from $prefix$_mapping;")
+
+	err = d.Init()
+	if err != nil {
+		return nil, err
+	}
+
+	err = d.AddUniqueIndex(Index{Name: "unique_keys", Table: "$prefix$_mapping", Fields: []string{"first_key", "second_key"}}, false)
 	return d, err
 }

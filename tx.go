@@ -5,13 +5,15 @@ import (
 	"errors"
 )
 
+// TX is a transaction token
 type TX struct {
-	db *DB
+	dbome *Bome
 	*sql.Tx
 }
 
-func (tx *TX) SExec(saved string, args ...interface{}) error {
-	stmt, found := tx.db.registeredStatements[saved]
+//SExec executes the statement saved as name
+func (tx *TX) SExec(name string, args ...interface{}) error {
+	stmt, found := tx.dbome.registeredStatements[name]
 	if !found {
 		return errors.New("no statement found")
 	}
@@ -19,8 +21,9 @@ func (tx *TX) SExec(saved string, args ...interface{}) error {
 	return err
 }
 
-func (tx *TX) SQuery(saved string, scannerName string, args ...interface{}) (Cursor, error) {
-	stmt, found := tx.db.registeredStatements[saved]
+//SQuery executes the query statement saved as name
+func (tx *TX) SQuery(name string, scannerName string, args ...interface{}) (Cursor, error) {
+	stmt, found := tx.dbome.registeredStatements[name]
 	if !found {
 		return nil, errors.New("no statement found")
 	}
@@ -29,15 +32,16 @@ func (tx *TX) SQuery(saved string, scannerName string, args ...interface{}) (Cur
 	if err != nil {
 		return nil, err
 	}
-	scanner, err := tx.db.findScanner(scannerName)
+	scanner, err := tx.dbome.findScanner(scannerName)
 	if err != nil {
 		return nil, err
 	}
 	return newCursor(rows, scanner), nil
 }
 
-func (tx *TX) SQueryFirst(saved string, scannerName string, args ...interface{}) (interface{}, error) {
-	stmt, found := tx.db.registeredStatements[saved]
+// SQueryFirst get the first result of the query statement saved as name
+func (tx *TX) SQueryFirst(name string, scannerName string, args ...interface{}) (interface{}, error) {
+	stmt, found := tx.dbome.registeredStatements[name]
 	if !found {
 		return nil, errors.New("no statement found")
 	}
@@ -46,7 +50,7 @@ func (tx *TX) SQueryFirst(saved string, scannerName string, args ...interface{})
 	if err != nil {
 		return nil, err
 	}
-	scanner, err := tx.db.findScanner(scannerName)
+	scanner, err := tx.dbome.findScanner(scannerName)
 	if err != nil {
 		return nil, err
 	}
@@ -62,10 +66,12 @@ func (tx *TX) SQueryFirst(saved string, scannerName string, args ...interface{})
 	return cursor.Next()
 }
 
+// Commit commits the transaction
 func (tx *TX) Commit() error {
 	return tx.Tx.Commit()
 }
 
+// Rollback reverts all changes operated during the transaction
 func (tx *TX) Rollback() error {
 	return tx.Tx.Rollback()
 }

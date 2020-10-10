@@ -9,30 +9,38 @@ import (
 )
 
 const (
-	MySQLIndexScanner  = "mysql_index_scanner"
-	SQLiteIndexScanner = "sqlite_index_scanner"
+	mysqlIndexScanner  = "mysql_index_scanner"
+	sqliteIndexScanner = "sqlite_index_scanner"
 
-	VarPrefix        = "$prefix$"
-	VarEngine        = "$engine$"
+	// VarPrefix is used to set table name prefix dynamically
+	VarPrefix = "$prefix$"
+
+	// VarEngine is used to define prefix. Bome replaces it with the dialect engine value
+	VarEngine = "$engine$"
+
+	// VarAutoIncrement is used set autorincrement to int field. Bome replaces it with the dialect proper value
 	VarAutoIncrement = "$auto_increment$"
-	VarLocate        = "$locate$"
 
-	// ScannerIndex = "scanner_index"
+	// VarLocate is the equivalent of string replace
+	VarLocate = "$locate$"
 )
 
+// Result is returned when executing a write operation
 type Result struct {
 	Error        error
 	LastInserted int64
 	AffectedRows int64
 }
 
-type SQLIndex struct {
+// Index is the equivalent of SQL index
+type Index struct {
 	Name   string
 	Table  string
 	Fields []string
 }
 
-type DB struct {
+// Bome is an SQL database driver
+type Bome struct {
 	sqlDb                      *sql.DB
 	mux                        *sync.RWMutex
 	dialect                    string
@@ -48,7 +56,8 @@ type DB struct {
 	initDone                   bool
 }
 
-func Create(dsn string) (*DB, error) {
+// Open detects and creates an instance of Bome DB according to the dialect
+func Open(dsn string) (*Bome, error) {
 	u, err := url.Parse(dsn)
 	if err != nil {
 		return nil, err
@@ -60,18 +69,18 @@ func Create(dsn string) (*DB, error) {
 			return nil, err
 		}
 
-		dao := new(DB)
-		dao.sqlDb = db
-		dao.isSQLite = true
-		dao.dialect = "sqlite3"
-		dao.SetVariable(VarLocate, "instr")
-		dao.SetVariable(VarAutoIncrement, "AUTOINCREMENT")
-		dao.SetVariable(VarEngine, "")
-		if _, err := dao.sqlDb.Exec("PRAGMA foreign_keys=ON"); err != nil {
+		dbome := new(Bome)
+		dbome.sqlDb = db
+		dbome.isSQLite = true
+		dbome.dialect = "sqlite3"
+		dbome.SetVariable(VarLocate, "instr")
+		dbome.SetVariable(VarAutoIncrement, "AUTOINCREMENT")
+		dbome.SetVariable(VarEngine, "")
+		if _, err := dbome.sqlDb.Exec("PRAGMA foreign_keys=ON"); err != nil {
 			return nil, err
 		}
-		dao.mux = new(sync.RWMutex)
-		return dao, nil
+		dbome.mux = new(sync.RWMutex)
+		return dbome, nil
 
 	} else if u.Scheme == "mysql" {
 		db, err := sql.Open("sqlite3", strings.TrimPrefix(dsn, "mysql://"))
@@ -79,33 +88,61 @@ func Create(dsn string) (*DB, error) {
 			return nil, err
 		}
 
-		dao := new(DB)
-		dao.sqlDb = db
-		dao.dialect = "mysql"
-		dao.SetVariable(VarLocate, "locate")
-		dao.SetVariable(VarAutoIncrement, "AUTO_INCREMENT")
-		dao.SetVariable(VarEngine, "engine=InnoDB")
-		return dao, nil
+		dbome := new(Bome)
+		dbome.sqlDb = db
+		dbome.dialect = "mysql"
+		dbome.SetVariable(VarLocate, "locate")
+		dbome.SetVariable(VarAutoIncrement, "AUTO_INCREMENT")
+		dbome.SetVariable(VarEngine, "engine=InnoDB")
+		return dbome, nil
 
 	} else {
 		return nil, DialectNotSupported
 	}
 }
 
-func (dao *DB) Init() error {
-	return dao.init()
+// New creates a MySQL wrapper
+func New(db *sql.DB) (*Bome, error) {
+	dbome := new(Bome)
+	dbome.sqlDb = db
+	dbome.dialect = "mysql"
+	dbome.SetVariable(VarLocate, "locate")
+	dbome.SetVariable(VarAutoIncrement, "AUTO_INCREMENT")
+	dbome.SetVariable(VarEngine, "engine=InnoDB")
+	return dbome, nil
 }
 
-func (dao *DB) init() error {
-	dao.RegisterScanner(MySQLIndexScanner, NewScannerFunc(dao.mysqlIndexScan))
-	dao.RegisterScanner(SQLiteIndexScanner, NewScannerFunc(dao.sqliteIndexScan))
+// NewLite creates an SQLite wrapper
+func NewLite(db *sql.DB) (*Bome, error) {
+	dbome := new(Bome)
+	dbome.sqlDb = db
+	dbome.isSQLite = true
+	dbome.dialect = "sqlite3"
+	dbome.SetVariable(VarLocate, "instr")
+	dbome.SetVariable(VarAutoIncrement, "AUTOINCREMENT")
+	dbome.SetVariable(VarEngine, "")
+	if _, err := dbome.sqlDb.Exec("PRAGMA foreign_keys=ON"); err != nil {
+		return nil, err
+	}
+	dbome.mux = new(sync.RWMutex)
+	return dbome, nil
+}
 
-	if dao.tableDefs != nil && len(dao.tableDefs) > 0 {
-		for _, schema := range dao.tableDefs {
-			for name, value := range dao.vars {
+// Init must be call after custom variable and statements are set. And before any request is executed
+func (dbome *Bome) Init() error {
+	return dbome.init()
+}
+
+func (dbome *Bome) init() error {
+	dbome.RegisterScanner(mysqlIndexScanner, NewScannerFunc(dbome.mysqlIndexScan))
+	dbome.RegisterScanner(sqliteIndexScanner, NewScannerFunc(dbome.sqliteIndexScan))
+
+	if dbome.tableDefs != nil && len(dbome.tableDefs) > 0 {
+		for _, schema := range dbome.tableDefs {
+			for name, value := range dbome.vars {
 				schema = strings.Replace(schema, name, value, -1)
 			}
-			_, err := dao.sqlDb.Exec(schema)
+			_, err := dbome.sqlDb.Exec(schema)
 			if err != nil {
 				return err
 			}
@@ -113,56 +150,57 @@ func (dao *DB) init() error {
 	}
 
 	var specificStatements map[string]string
-	if dao.isSQLite && dao.registeredSQLiteStatements != nil {
-		specificStatements = dao.registeredSQLiteStatements
+	if dbome.isSQLite && dbome.registeredSQLiteStatements != nil {
+		specificStatements = dbome.registeredSQLiteStatements
 	} else {
-		specificStatements = dao.registeredMySQLStatements
+		specificStatements = dbome.registeredMySQLStatements
 	}
 
 	if specificStatements != nil {
-		if dao.registeredStatements == nil {
-			dao.registeredStatements = map[string]string{}
+		if dbome.registeredStatements == nil {
+			dbome.registeredStatements = map[string]string{}
 		}
 		for name, stmt := range specificStatements {
-			dao.registeredStatements[name] = stmt
+			dbome.registeredStatements[name] = stmt
 		}
 	}
 
-	for name, stmt := range dao.registeredStatements {
-		for name, value := range dao.vars {
+	for name, stmt := range dbome.registeredStatements {
+		for name, value := range dbome.vars {
 			stmt = strings.Replace(stmt, name, value, -1)
 		}
-		dao.registeredStatements[name] = stmt
+		dbome.registeredStatements[name] = stmt
 	}
 
-	if dao.registeredStatements != nil && len(dao.registeredStatements) > 0 {
-		dao.compiledStatements = map[string]*sql.Stmt{}
-		for name, stmt := range dao.registeredStatements {
-			/*for name, value := range dao.vars {
+	if dbome.registeredStatements != nil && len(dbome.registeredStatements) > 0 {
+		dbome.compiledStatements = map[string]*sql.Stmt{}
+		for name, stmt := range dbome.registeredStatements {
+			/*for name, value := range dbome.vars {
 				stmt = strings.Replace(stmt, name, value, -1)
 			} */
-			compiledStmt, err := dao.sqlDb.Prepare(stmt)
+			compiledStmt, err := dbome.sqlDb.Prepare(stmt)
 			if err != nil {
 				return err
 			}
-			dao.compiledStatements[name] = compiledStmt
+			dbome.compiledStatements[name] = compiledStmt
 		}
 	}
 
-	dao.initDone = true
+	dbome.initDone = true
 	return nil
 }
 
-func (dao *DB) Migrate() error {
-	if !dao.initDone {
+// Migrate executes registered migration scripts. And must be call before init
+func (dbome *Bome) Migrate() error {
+	if !dbome.initDone {
 		return InitError
 	}
-	for _, ms := range dao.migrationScripts {
-		for name, value := range dao.vars {
+	for _, ms := range dbome.migrationScripts {
+		for name, value := range dbome.vars {
 			ms = strings.Replace(ms, name, value, -1)
 		}
 
-		_, err := dao.sqlDb.Exec(ms)
+		_, err := dbome.sqlDb.Exec(ms)
 		if err != nil {
 			return err
 		}
@@ -170,52 +208,64 @@ func (dao *DB) Migrate() error {
 	return nil
 }
 
-func (dao *DB) IsSQLite() bool {
-	return dao.isSQLite
+// IsSQLite return true if wrapped database is SQLite
+func (dbome *Bome) IsSQLite() bool {
+	return dbome.isSQLite
 }
 
-func (dao *DB) SetVariable(name string, value string) *DB {
-	if dao.vars == nil {
-		dao.vars = map[string]string{}
+// SetVariable is used to defines a variable
+func (dbome *Bome) SetVariable(name string, value string) *Bome {
+	if dbome.vars == nil {
+		dbome.vars = map[string]string{}
 	}
-	dao.vars[name] = value
-	return dao
+	dbome.vars[name] = value
+	return dbome
 }
 
-func (dao *DB) SetTablePrefix(prefix string) *DB {
-	if dao.vars == nil {
-		dao.vars = map[string]string{}
+// SetTablePrefix is used to defines all table name prefix
+func (dbome *Bome) SetTablePrefix(prefix string) *Bome {
+	if dbome.vars == nil {
+		dbome.vars = map[string]string{}
 	}
-	dao.vars[VarPrefix] = prefix
-	return dao
+	dbome.vars[VarPrefix] = prefix
+	return dbome
 }
 
-func (dao *DB) AddMigrationScript(s string) *DB {
-	dao.migrationScripts = append(dao.migrationScripts, s)
-	return dao
+//AddMigrationScript adds an migration script.
+func (dbome *Bome) AddMigrationScript(s string) *Bome {
+	dbome.migrationScripts = append(dbome.migrationScripts, s)
+	return dbome
 }
 
-func (dao *DB) BeginTx() (*TX, error) {
-	tx, err := dao.sqlDb.Begin()
+// AddTableDefinition adds a table definition. Query can contains predefined or custom defined variables
+func (dbome *Bome) AddTableDefinition(schema string) *Bome {
+	dbome.tableDefs = append(dbome.tableDefs, schema)
+	return dbome
+}
+
+// BeginTx begins a transaction
+func (dbome *Bome) BeginTx() (*TX, error) {
+	tx, err := dbome.sqlDb.Begin()
 	if err != nil {
 		return nil, err
 	}
 
 	tr := &TX{}
 	tr.Tx = tx
-	tr.db = dao
+	tr.dbome = dbome
 	return tr, nil
 }
 
-func (dao *DB) AddUniqueIndex(index SQLIndex, forceUpdate bool) error {
-	if !dao.initDone {
+// AddUniqueIndex adds a table index
+func (dbome *Bome) AddUniqueIndex(index Index, forceUpdate bool) error {
+	if !dbome.initDone {
 		return InitError
 	}
 
-	for varName, value := range dao.vars {
+	for varName, value := range dbome.vars {
 		index.Table = strings.Replace(index.Table, varName, value, -1)
 	}
-	hasIndex, err := dao.TableHasIndex(index)
+	hasIndex, err := dbome.TableHasIndex(index)
 	if err != nil {
 		return err
 	}
@@ -223,13 +273,13 @@ func (dao *DB) AddUniqueIndex(index SQLIndex, forceUpdate bool) error {
 	var result *Result
 	if hasIndex && forceUpdate {
 		var dropIndexSQL string
-		if dao.dialect == "mysql" {
+		if dbome.dialect == "mysql" {
 			dropIndexSQL = fmt.Sprintf("drop index %s on %s", index.Name, index.Table)
 		} else {
 			dropIndexSQL = fmt.Sprintf("drop index if exists %s", index.Name)
 		}
 
-		result = dao.RawExec(dropIndexSQL)
+		result = dbome.RawExec(dropIndexSQL)
 		if result.Error != nil {
 			return result.Error
 		}
@@ -237,13 +287,13 @@ func (dao *DB) AddUniqueIndex(index SQLIndex, forceUpdate bool) error {
 
 	if !hasIndex || forceUpdate {
 		var createIndexSQL string
-		if dao.dialect == "mysql" {
+		if dbome.dialect == "mysql" {
 			createIndexSQL = fmt.Sprintf("create unique index %s on %s(%s)", index.Name, index.Table, strings.Join(index.Fields, ","))
 		} else {
 			createIndexSQL = fmt.Sprintf("create unique index if not exists %s on %s(%s)", index.Name, index.Table, strings.Join(index.Fields, ","))
 		}
 
-		result = dao.RawExec(createIndexSQL)
+		result = dbome.RawExec(createIndexSQL)
 		if result.Error != nil {
 			return result.Error
 		}
@@ -252,45 +302,45 @@ func (dao *DB) AddUniqueIndex(index SQLIndex, forceUpdate bool) error {
 	return nil
 }
 
-func (dao *DB) AddTableDefinition(schema string) *DB {
-	dao.tableDefs = append(dao.tableDefs, schema)
-	return dao
-}
-
-func (dao *DB) AddStatement(name string, statementStr string) *DB {
-	if dao.registeredStatements == nil {
-		dao.registeredStatements = map[string]string{}
+// AddStatement registers a statement that can later be called with the given name
+func (dbome *Bome) AddStatement(name string, statementStr string) *Bome {
+	if dbome.registeredStatements == nil {
+		dbome.registeredStatements = map[string]string{}
 	}
-	dao.registeredStatements[name] = statementStr
-	return dao
+	dbome.registeredStatements[name] = statementStr
+	return dbome
 }
 
-func (dao *DB) AddSQLiteStatement(name string, statementStr string) *DB {
-	if dao.registeredSQLiteStatements == nil {
-		dao.registeredSQLiteStatements = map[string]string{}
+// AddSQLiteStatement registers an specific SQLite statement that can later be called with the given name
+func (dbome *Bome) AddSQLiteStatement(name string, statementStr string) *Bome {
+	if dbome.registeredSQLiteStatements == nil {
+		dbome.registeredSQLiteStatements = map[string]string{}
 	}
-	dao.registeredSQLiteStatements[name] = statementStr
-	return dao
+	dbome.registeredSQLiteStatements[name] = statementStr
+	return dbome
 }
 
-func (dao *DB) AddMySQLStatement(name string, statementStr string) *DB {
-	if dao.registeredMySQLStatements == nil {
-		dao.registeredMySQLStatements = map[string]string{}
+// AddMySQLStatement registers a specific MySQL statement that can later be called with the given name
+func (dbome *Bome) AddMySQLStatement(name string, statementStr string) *Bome {
+	if dbome.registeredMySQLStatements == nil {
+		dbome.registeredMySQLStatements = map[string]string{}
 	}
-	dao.registeredMySQLStatements[name] = statementStr
-	return dao
+	dbome.registeredMySQLStatements[name] = statementStr
+	return dbome
 }
 
-func (dao *DB) RegisterScanner(name string, scanner Scanner) *DB {
-	if dao.scanners == nil {
-		dao.scanners = map[string]Scanner{}
+// RegisterScanner registers a scanner with a name wich is used when querying data
+func (dbome *Bome) RegisterScanner(name string, scanner Scanner) *Bome {
+	if dbome.scanners == nil {
+		dbome.scanners = map[string]Scanner{}
 	}
-	dao.scanners[name] = scanner
-	return dao
+	dbome.scanners[name] = scanner
+	return dbome
 }
 
-func (dao *DB) TableHasIndex(index SQLIndex) (bool, error) {
-	if !dao.initDone {
+// TableHasIndex tells if the given index exists
+func (dbome *Bome) TableHasIndex(index Index) (bool, error) {
+	if !dbome.initDone {
 		return false, InitError
 	}
 
@@ -298,15 +348,15 @@ func (dao *DB) TableHasIndex(index SQLIndex) (bool, error) {
 		scannerName string
 		rawQuery    string
 	)
-	if dao.dialect == "mysql" {
+	if dbome.dialect == "mysql" {
 		rawQuery = fmt.Sprintf("SHOW INDEX FROM %s", index.Table)
-		scannerName = MySQLIndexScanner
+		scannerName = mysqlIndexScanner
 	} else {
 		rawQuery = fmt.Sprintf("PRAGMA INDEX_LIST('%s')", index.Table)
-		scannerName = SQLiteIndexScanner
+		scannerName = sqliteIndexScanner
 	}
 
-	cursor, err := dao.RawQuery(rawQuery, scannerName)
+	cursor, err := dbome.RawQuery(rawQuery, scannerName)
 	if err != nil {
 		return false, err
 	}
@@ -320,7 +370,7 @@ func (dao *DB) TableHasIndex(index SQLIndex) (bool, error) {
 			return false, err
 		}
 
-		rowIndex := ind.(SQLIndex)
+		rowIndex := ind.(Index)
 		if rowIndex.Name == index.Name {
 			return true, nil
 		}
@@ -328,31 +378,35 @@ func (dao *DB) TableHasIndex(index SQLIndex) (bool, error) {
 	return false, nil
 }
 
-func (dao *DB) RawQuery(query string, scannerName string, params ...interface{}) (Cursor, error) {
-	for name, value := range dao.vars {
+// RawQuery executes a raw query.
+// scannerName: is one the registered scanner name
+func (dbome *Bome) RawQuery(query string, scannerName string, params ...interface{}) (Cursor, error) {
+	for name, value := range dbome.vars {
 		query = strings.Replace(query, name, value, -1)
 	}
-	rows, err := dao.sqlDb.Query(query, params...)
+	rows, err := dbome.sqlDb.Query(query, params...)
 	if err != nil {
 		return nil, err
 	}
-	scanner, err := dao.findScanner(scannerName)
+	scanner, err := dbome.findScanner(scannerName)
 	if err != nil {
 		return nil, err
 	}
 	return newCursor(rows, scanner), nil
 }
 
-func (dao *DB) RawQueryFirst(query string, scannerName string, params ...interface{}) (interface{}, error) {
-	for name, value := range dao.vars {
+// RawQueryFirst gets the first result of the query result.
+// scannerName: is one the registered scanner name
+func (dbome *Bome) RawQueryFirst(query string, scannerName string, params ...interface{}) (interface{}, error) {
+	for name, value := range dbome.vars {
 		query = strings.Replace(query, name, value, -1)
 	}
 
-	rows, err := dao.sqlDb.Query(query, params...)
+	rows, err := dbome.sqlDb.Query(query, params...)
 	if err != nil {
 		return nil, err
 	}
-	scanner, err := dao.findScanner(scannerName)
+	scanner, err := dbome.findScanner(scannerName)
 	if err != nil {
 		return nil, err
 	}
@@ -368,27 +422,29 @@ func (dao *DB) RawQueryFirst(query string, scannerName string, params ...interfa
 	return cursor.Next()
 }
 
-func (dao *DB) RawExec(rawQuery string) *Result {
-	dao.wLock()
-	defer dao.wUnlock()
+// RawExec executes the given raw query
+func (dbome *Bome) RawExec(rawQuery string) *Result {
+	dbome.wLock()
+	defer dbome.wUnlock()
 	var r sql.Result
 	result := &Result{}
-	for name, value := range dao.vars {
+	for name, value := range dbome.vars {
 		rawQuery = strings.Replace(rawQuery, name, value, -1)
 	}
-	r, result.Error = dao.sqlDb.Exec(rawQuery)
-	if result.Error == nil && dao.dialect != "sqlite3" {
+	r, result.Error = dbome.sqlDb.Exec(rawQuery)
+	if result.Error == nil && dbome.dialect != "sqlite3" {
 		result.LastInserted, _ = r.LastInsertId()
 		result.AffectedRows, _ = r.RowsAffected()
 	}
 	return result
 }
 
-func (dao *DB) Query(stmt string, scannerName string, params ...interface{}) (Cursor, error) {
-	dao.rLock()
-	defer dao.rUnLock()
+// Query gets the results of the registered statement which name equals stmt
+func (dbome *Bome) Query(stmt string, scannerName string, params ...interface{}) (Cursor, error) {
+	dbome.rLock()
+	defer dbome.rUnLock()
 
-	st := dao.getStatement(stmt)
+	st := dbome.getStatement(stmt)
 	if st == nil {
 		return nil, fmt.Errorf("statement `%s` does not exist", stmt)
 	}
@@ -398,7 +454,7 @@ func (dao *DB) Query(stmt string, scannerName string, params ...interface{}) (Cu
 		return nil, err
 	}
 
-	scanner, err := dao.findScanner(scannerName)
+	scanner, err := dbome.findScanner(scannerName)
 	if err != nil {
 		return nil, err
 	}
@@ -407,11 +463,12 @@ func (dao *DB) Query(stmt string, scannerName string, params ...interface{}) (Cu
 	return cursor, nil
 }
 
-func (dao *DB) QueryFirst(stmt string, scannerName string, params ...interface{}) (interface{}, error) {
-	dao.rLock()
-	defer dao.rUnLock()
+// QueryFirst gets the first result of the registered statement which name equals stmt
+func (dbome *Bome) QueryFirst(stmt string, scannerName string, params ...interface{}) (interface{}, error) {
+	dbome.rLock()
+	defer dbome.rUnLock()
 
-	st := dao.getStatement(stmt)
+	st := dbome.getStatement(stmt)
 	if st == nil {
 		return nil, fmt.Errorf("statement `%s` does not exist", stmt)
 	}
@@ -421,7 +478,7 @@ func (dao *DB) QueryFirst(stmt string, scannerName string, params ...interface{}
 		return nil, err
 	}
 
-	scanner, err := dao.findScanner(scannerName)
+	scanner, err := dbome.findScanner(scannerName)
 	if err != nil {
 		return nil, err
 	}
@@ -437,9 +494,10 @@ func (dao *DB) QueryFirst(stmt string, scannerName string, params ...interface{}
 	return cursor.Next()
 }
 
-func (dao *DB) Exec(stmt string, params ...interface{}) *Result {
-	dao.wLock()
-	defer dao.wUnlock()
+// Exec executes the registered statement which name match 'stmt'
+func (dbome *Bome) Exec(stmt string, params ...interface{}) *Result {
+	dbome.wLock()
+	defer dbome.wUnlock()
 
 	result := &Result{}
 	var (
@@ -447,7 +505,7 @@ func (dao *DB) Exec(stmt string, params ...interface{}) *Result {
 		r  sql.Result
 	)
 
-	st, result.Error = dao.findCompileStatement(stmt)
+	st, result.Error = dbome.findCompileStatement(stmt)
 	if result.Error != nil {
 		return result
 	}
@@ -460,12 +518,12 @@ func (dao *DB) Exec(stmt string, params ...interface{}) *Result {
 	return result
 }
 
-func (dao *DB) sqliteIndexScan(row Row) (interface{}, error) {
-	dao.rLock()
-	defer dao.rUnLock()
+func (dbome *Bome) sqliteIndexScan(row Row) (interface{}, error) {
+	dbome.rLock()
+	defer dbome.rUnLock()
 
-	var index SQLIndex
-	m, err := dao.rowToMap(row.(*sql.Rows))
+	var index Index
+	m, err := dbome.rowToMap(row.(*sql.Rows))
 	if err != nil {
 		return nil, err
 	}
@@ -478,9 +536,9 @@ func (dao *DB) sqliteIndexScan(row Row) (interface{}, error) {
 	return index, nil
 }
 
-func (dao *DB) mysqlIndexScan(row Row) (interface{}, error) {
-	var index SQLIndex
-	m, err := dao.rowToMap(row.(*sql.Rows))
+func (dbome *Bome) mysqlIndexScan(row Row) (interface{}, error) {
+	var index Index
+	m, err := dbome.rowToMap(row.(*sql.Rows))
 	if err != nil {
 		return nil, err
 	}
@@ -496,7 +554,7 @@ func (dao *DB) mysqlIndexScan(row Row) (interface{}, error) {
 	return index, nil
 }
 
-func (dao *DB) rowToMap(rows *sql.Rows) (map[string]interface{}, error) {
+func (dbome *Bome) rowToMap(rows *sql.Rows) (map[string]interface{}, error) {
 	cols, _ := rows.Columns()
 	columns := make([]interface{}, len(cols))
 	columnPointers := make([]interface{}, len(cols))
@@ -520,57 +578,57 @@ func (dao *DB) rowToMap(rows *sql.Rows) (map[string]interface{}, error) {
 
 }
 
-func (dao *DB) findCompileStatement(name string) (*sql.Stmt, error) {
-	if dao.compiledStatements == nil {
+func (dbome *Bome) findCompileStatement(name string) (*sql.Stmt, error) {
+	if dbome.compiledStatements == nil {
 		return nil, StatementNotFound
 	}
 
-	if compiledStmt, found := dao.compiledStatements[name]; found {
+	if compiledStmt, found := dbome.compiledStatements[name]; found {
 		return compiledStmt, nil
 	}
 	return nil, StatementNotFound
 }
 
-func (dao *DB) findScanner(name string) (Scanner, error) {
-	scanner, found := dao.scanners[name]
+func (dbome *Bome) findScanner(name string) (Scanner, error) {
+	scanner, found := dbome.scanners[name]
 	if !found {
 		return nil, ScannerNotFound
 	}
 	return scanner, nil
 }
 
-func (dao *DB) getStatement(name string) *sql.Stmt {
-	if dao.compiledStatements == nil {
+func (dbome *Bome) getStatement(name string) *sql.Stmt {
+	if dbome.compiledStatements == nil {
 		return nil
 	}
-	s, found := dao.compiledStatements[name]
+	s, found := dbome.compiledStatements[name]
 	if !found {
 		return nil
 	}
 	return s
 }
 
-func (dao *DB) rLock() {
-	if dao.mux != nil {
-		dao.mux.RLock()
+func (dbome *Bome) rLock() {
+	if dbome.mux != nil {
+		dbome.mux.RLock()
 	}
 }
 
-func (dao *DB) wLock() {
-	if dao.mux != nil {
-		dao.mux.Lock()
+func (dbome *Bome) wLock() {
+	if dbome.mux != nil {
+		dbome.mux.Lock()
 	}
 }
 
-func (dao *DB) rUnLock() {
-	if dao.mux != nil {
-		dao.mux.RUnlock()
+func (dbome *Bome) rUnLock() {
+	if dbome.mux != nil {
+		dbome.mux.RUnlock()
 	}
 }
 
-func (dao *DB) wUnlock() {
-	if dao.mux != nil {
-		dao.mux.Unlock()
+func (dbome *Bome) wUnlock() {
+	if dbome.mux != nil {
+		dbome.mux.Unlock()
 	}
 }
 
@@ -582,6 +640,7 @@ func (sf *scannerFunc) ScanRow(row Row) (interface{}, error) {
 	return sf.f(row)
 }
 
+// NewScannerFunc creates a new scanner from function
 func NewScannerFunc(f func(row Row) (interface{}, error)) Scanner {
 	return &scannerFunc{
 		f: f,

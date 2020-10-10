@@ -1,5 +1,7 @@
 package bome
 
+import "database/sql"
+
 // Map is a convenience for persistent string to string dict
 type Map interface {
 	Save(entry *MapEntry) error
@@ -12,7 +14,7 @@ type Map interface {
 }
 
 type sqlObjects struct {
-	*DB
+	*Bome
 }
 
 func (s *sqlObjects) Save(entry *MapEntry) error {
@@ -56,17 +58,38 @@ func (s *sqlObjects) Clear() error {
 }
 
 func (s *sqlObjects) Close() error {
-	return s.DB.sqlDb.Close()
+	return s.Bome.sqlDb.Close()
 }
 
 // NewSQLMap creates an sql map which entries are store in a table that have name created with concataning name and '_map'
 func NewSQLMap(dsn string, name string) (Map, error) {
 	d := new(sqlObjects)
-	db, err := Create(dsn)
+	db, err := Open(dsn)
 	if err != nil {
 		return nil, nil
 	}
-	d.DB = db
+	d.Bome = db
+
+	d.SetTablePrefix(name).
+		AddTableDefinition("create table if not exists $prefix$_map (name varchar(255) not null primary key, val longblob not null);").
+		AddStatement("insert", "insert into $prefix$_mapping values (?, ?);").
+		AddStatement("update", "update $prefix$_mapping set val=? where name=?;").
+		AddStatement("select", "select * from $prefix$_mapping where name=?;").
+		AddStatement("select_all", "select * from $prefix$_mapping;").
+		AddStatement("contains", "select 1 from $prefix$_mapping where name=?;").
+		AddStatement("delete", "delete from $prefix$_mapping where name=?;").
+		AddStatement("clear", "delete from $prefix$_mapping;")
+	return d, d.Init()
+}
+
+// NewBomeMap creates MySQL wrapped Map
+func NewBomeMap(db *sql.DB, name string) (Map, error) {
+	d := new(sqlObjects)
+	dbome, err := New(db)
+	if err != nil {
+		return nil, nil
+	}
+	d.Bome = dbome
 
 	d.SetTablePrefix(name).
 		AddTableDefinition("create table if not exists $prefix$_map (name varchar(255) not null primary key, val longblob not null);").
