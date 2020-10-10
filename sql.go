@@ -33,7 +33,7 @@ type SQLIndex struct {
 }
 
 type DB struct {
-	sqlDb                         *sql.DB
+	sqlDb                      *sql.DB
 	mux                        *sync.RWMutex
 	dialect                    string
 	isSQLite                   bool
@@ -44,7 +44,7 @@ type DB struct {
 	registeredSQLiteStatements map[string]string
 	registeredMySQLStatements  map[string]string
 	migrationScripts           []string
-	scanners                   map[string]RowScannerV2
+	scanners                   map[string]Scanner
 	initDone                   bool
 }
 
@@ -60,7 +60,7 @@ func Create(dsn string) (*DB, error) {
 			return nil, err
 		}
 
-		dao := new (DB)
+		dao := new(DB)
 		dao.sqlDb = db
 		dao.isSQLite = true
 		dao.dialect = "sqlite3"
@@ -79,7 +79,7 @@ func Create(dsn string) (*DB, error) {
 			return nil, err
 		}
 
-		dao := new (DB)
+		dao := new(DB)
 		dao.sqlDb = db
 		dao.dialect = "mysql"
 		dao.SetVariable(VarLocate, "locate")
@@ -281,9 +281,9 @@ func (dao *DB) AddMySQLStatement(name string, statementStr string) *DB {
 	return dao
 }
 
-func (dao *DB) RegisterScanner(name string, scanner RowScannerV2) *DB {
+func (dao *DB) RegisterScanner(name string, scanner Scanner) *DB {
 	if dao.scanners == nil {
-		dao.scanners = map[string]RowScannerV2{}
+		dao.scanners = map[string]Scanner{}
 	}
 	dao.scanners[name] = scanner
 	return dao
@@ -328,7 +328,7 @@ func (dao *DB) TableHasIndex(index SQLIndex) (bool, error) {
 	return false, nil
 }
 
-func (dao *DB) RawQuery(query string, scannerName string, params ...interface{}) (DBCursor, error) {
+func (dao *DB) RawQuery(query string, scannerName string, params ...interface{}) (Cursor, error) {
 	for name, value := range dao.vars {
 		query = strings.Replace(query, name, value, -1)
 	}
@@ -340,7 +340,7 @@ func (dao *DB) RawQuery(query string, scannerName string, params ...interface{})
 	if err != nil {
 		return nil, err
 	}
-	return NewSQLDBCursor(rows, scanner), nil
+	return newCursor(rows, scanner), nil
 }
 
 func (dao *DB) RawQueryFirst(query string, scannerName string, params ...interface{}) (interface{}, error) {
@@ -357,7 +357,7 @@ func (dao *DB) RawQueryFirst(query string, scannerName string, params ...interfa
 		return nil, err
 	}
 
-	cursor := NewSQLDBCursor(rows, scanner)
+	cursor := newCursor(rows, scanner)
 	defer func() {
 		_ = cursor.Close()
 	}()
@@ -384,7 +384,7 @@ func (dao *DB) RawExec(rawQuery string) *Result {
 	return result
 }
 
-func (dao *DB) Query(stmt string, scannerName string, params ...interface{}) (DBCursor, error) {
+func (dao *DB) Query(stmt string, scannerName string, params ...interface{}) (Cursor, error) {
 	dao.rLock()
 	defer dao.rUnLock()
 
@@ -403,7 +403,7 @@ func (dao *DB) Query(stmt string, scannerName string, params ...interface{}) (DB
 		return nil, err
 	}
 
-	cursor := NewSQLDBCursor(rows, scanner)
+	cursor := newCursor(rows, scanner)
 	return cursor, nil
 }
 
@@ -426,7 +426,7 @@ func (dao *DB) QueryFirst(stmt string, scannerName string, params ...interface{}
 		return nil, err
 	}
 
-	cursor := NewSQLDBCursor(rows, scanner)
+	cursor := newCursor(rows, scanner)
 	defer func() {
 		_ = cursor.Close()
 	}()
@@ -531,7 +531,7 @@ func (dao *DB) findCompileStatement(name string) (*sql.Stmt, error) {
 	return nil, StatementNotFound
 }
 
-func (dao *DB) findScanner(name string) (RowScannerV2, error) {
+func (dao *DB) findScanner(name string) (Scanner, error) {
 	scanner, found := dao.scanners[name]
 	if !found {
 		return nil, ScannerNotFound
@@ -574,12 +574,6 @@ func (dao *DB) wUnlock() {
 	}
 }
 
-type DBCursor interface {
-	Next() (interface{}, error)
-	HasNext() bool
-	Close() error
-}
-
 type scannerFunc struct {
 	f func(rows Row) (interface{}, error)
 }
@@ -588,34 +582,8 @@ func (sf *scannerFunc) ScanRow(row Row) (interface{}, error) {
 	return sf.f(row)
 }
 
-func NewScannerFunc(f func(row Row) (interface{}, error)) RowScannerV2 {
+func NewScannerFunc(f func(row Row) (interface{}, error)) Scanner {
 	return &scannerFunc{
 		f: f,
 	}
-}
-
-// SQLCursor
-type SQLCursor struct {
-	err  error
-	scan RowScannerV2
-	rows *sql.Rows
-}
-
-func NewSQLDBCursor(rows *sql.Rows, scanner RowScannerV2) DBCursor {
-	return &SQLCursor{
-		scan: scanner,
-		rows: rows,
-	}
-}
-
-func (c *SQLCursor) Close() error {
-	return c.rows.Close()
-}
-
-func (c *SQLCursor) HasNext() bool {
-	return c.rows.Next()
-}
-
-func (c *SQLCursor) Next() (interface{}, error) {
-	return c.scan.ScanRow(c.rows)
 }

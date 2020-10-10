@@ -2,7 +2,6 @@ package bome
 
 import "errors"
 
-
 var TableNotFound = errors.New("bome: table not found")
 var IndexNotFound = errors.New("bome: index not found")
 var InitError = errors.New("bome: init error")

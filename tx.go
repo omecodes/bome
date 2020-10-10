@@ -33,7 +33,7 @@ func (tx *TX) SQuery(saved string, scannerName string, args ...interface{}) (Cur
 	if err != nil {
 		return nil, err
 	}
-	return NewSQLDBCursor(rows, scanner), nil
+	return newCursor(rows, scanner), nil
 }
 
 func (tx *TX) SQueryFirst(saved string, scannerName string, args ...interface{}) (interface{}, error) {
@@ -51,7 +51,7 @@ func (tx *TX) SQueryFirst(saved string, scannerName string, args ...interface{})
 		return nil, err
 	}
 
-	cursor := NewSQLDBCursor(rows, scanner)
+	cursor := newCursor(rows, scanner)
 	defer func() {
 		_ = cursor.Close()
 	}()
