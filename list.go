@@ -120,8 +120,8 @@ func ListFromSQLDB(dialect string, db *sql.DB, name string) (List, error) {
 	}
 
 	d.SetTablePrefix(name).
-		AddTableDefinition("create table if not exists $prefix$_list (ind int not null primary key $auto_increment$, encoded longblob not null);").
-		AddStatement("insert", "insert into $prefix$_list (encoded) values (?);").
+		AddTableDefinition("create table if not exists $prefix$_list (ind int not null primary key $auto_increment$, value longtext not null);").
+		AddStatement("insert", "insert into $prefix$_list (value) values (?);").
 		AddStatement("select", "select * from $prefix$_list where ind=?;").
 		AddStatement("select_min_index", "select min(ind) from $prefix$_list;").
 		AddStatement("select_max_index", "select max(ind) from $prefix$_list;").

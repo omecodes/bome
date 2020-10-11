@@ -100,13 +100,13 @@ func MapFromSQLDB(dialect string, db *sql.DB, name string) (Map, error) {
 	}
 
 	d.SetTablePrefix(name).
-		AddTableDefinition("create table if not exists $prefix$_map (name varchar(255) not null primary key, val longblob not null);").
-		AddStatement("insert", "insert into $prefix$_mapping values (?, ?);").
-		AddStatement("update", "update $prefix$_mapping set val=? where name=?;").
-		AddStatement("select", "select * from $prefix$_mapping where name=?;").
-		AddStatement("select_all", "select * from $prefix$_mapping;").
-		AddStatement("contains", "select 1 from $prefix$_mapping where name=?;").
-		AddStatement("delete", "delete from $prefix$_mapping where name=?;").
-		AddStatement("clear", "delete from $prefix$_mapping;")
+		AddTableDefinition("create table if not exists $prefix$_map (name varchar(255) not null primary key, value longtext not null);").
+		AddStatement("insert", "insert into $prefix$_map values (?, ?);").
+		AddStatement("update", "update $prefix$_map set value=? where name=?;").
+		AddStatement("select", "select * from $prefix$_map where name=?;").
+		AddStatement("select_all", "select * from $prefix$_map;").
+		AddStatement("contains", "select 1 from $prefix$_map where name=?;").
+		AddStatement("delete", "delete from $prefix$_map where name=?;").
+		AddStatement("clear", "delete from $prefix$_map;")
 	return d, d.Init()
 }
