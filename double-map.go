@@ -80,7 +80,7 @@ func NewSQLDoubleMap(dsn string, name string) (DoubleMap, error) {
 		AddTableDefinition("create table if not exists $prefix$_map (first_key varchar(255) not null, second_key varchar(255) not null, val longblob not null);").
 		AddStatement("insert", "insert into $prefix$_mapping values (?, ?, ?);").
 		AddStatement("update", "update $prefix$_mapping set val=? where first_key=? and second_key=?;").
-		AddStatement("select", "select * from $prefix$_mapping where first_key=? and second_key=?;").
+		AddStatement("select", "select value from $prefix$_mapping where first_key=? and second_key=?;").
 		AddStatement("select_by_first_key", "select second_key, val from $prefix$_mapping where first_key=?;").
 		AddStatement("select_by_second_key", "select first_key, val from $prefix$_mapping where second_key=?;").
 		AddStatement("select_all", "select * from $prefix$_mapping;").
@@ -115,7 +115,7 @@ func DMapFromSQLDB(dialect string, db *sql.DB, name string) (DoubleMap, error) {
 		AddTableDefinition("create table if not exists $prefix$_map (first_key varchar(255) not null, second_key varchar(255) not null, value longtext not null);").
 		AddStatement("insert", "insert into $prefix$_map values (?, ?, ?);").
 		AddStatement("update", "update $prefix$_map set value=? where first_key=? and second_key=?;").
-		AddStatement("select", "select * from $prefix$_map where first_key=? and second_key=?;").
+		AddStatement("select", "select value from $prefix$_map where first_key=? and second_key=?;").
 		AddStatement("select_by_first_key", "select second_key, value from $prefix$_map where first_key=?;").
 		AddStatement("select_by_second_key", "select first_key, value from $prefix$_map where second_key=?;").
 		AddStatement("select_all", "select * from $prefix$_map;").

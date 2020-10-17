@@ -134,6 +134,9 @@ func (dbome *Bome) Init() error {
 }
 
 func (dbome *Bome) init() error {
+	for name, scanner := range defaultScanners {
+		dbome.RegisterScanner(name, scanner)
+	}
 	dbome.RegisterScanner(mysqlIndexScanner, NewScannerFunc(dbome.mysqlIndexScan))
 	dbome.RegisterScanner(sqliteIndexScanner, NewScannerFunc(dbome.sqliteIndexScan))
 
