@@ -84,7 +84,7 @@ func NewSQLDoubleMap(dsn string, name string) (DoubleMap, error) {
 		AddStatement("select_by_first_key", "select second_key, val from $prefix$_mapping where first_key=?;").
 		AddStatement("select_by_second_key", "select first_key, val from $prefix$_mapping where second_key=?;").
 		AddStatement("select_all", "select * from $prefix$_mapping;").
-		AddStatement("delete", "delete from $prefix$_mapping where first_key=?;").
+		AddStatement("delete", "delete from $prefix$_mapping where first_key=? and second_key=?;").
 		AddStatement("delete_by_first_key", "delete from $prefix$_mapping where first_key=?;").
 		AddStatement("delete_by_second_key", "delete from $prefix$_mapping where second_key=?;").
 		AddStatement("clear", "delete from $prefix$_mapping;")
@@ -119,7 +119,7 @@ func DMapFromSQLDB(dialect string, db *sql.DB, name string) (DoubleMap, error) {
 		AddStatement("select_by_first_key", "select second_key, value from $prefix$_map where first_key=?;").
 		AddStatement("select_by_second_key", "select first_key, value from $prefix$_map where second_key=?;").
 		AddStatement("select_all", "select * from $prefix$_map;").
-		AddStatement("delete", "delete from $prefix$_map where first_key=?;").
+		AddStatement("delete", "delete from $prefix$_map where first_key=? and second_key=?;").
 		AddStatement("delete_by_first_key", "delete from $prefix$_map where first_key=?;").
 		AddStatement("delete_by_second_key", "delete from $prefix$_map where second_key=?;").
 		AddStatement("clear", "delete from $prefix$_map;")
