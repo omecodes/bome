@@ -426,7 +426,7 @@ func (dbome *Bome) RawQueryFirst(query string, scannerName string, params ...int
 }
 
 // RawExec executes the given raw query
-func (dbome *Bome) RawExec(rawQuery string) *Result {
+func (dbome *Bome) RawExec(rawQuery string, params ...interface{}) *Result {
 	dbome.wLock()
 	defer dbome.wUnlock()
 	var r sql.Result
@@ -434,7 +434,7 @@ func (dbome *Bome) RawExec(rawQuery string) *Result {
 	for name, value := range dbome.vars {
 		rawQuery = strings.Replace(rawQuery, name, value, -1)
 	}
-	r, result.Error = dbome.sqlDb.Exec(rawQuery)
+	r, result.Error = dbome.sqlDb.Exec(rawQuery, params...)
 	if result.Error == nil && dbome.dialect != "sqlite3" {
 		result.LastInserted, _ = r.LastInsertId()
 		result.AffectedRows, _ = r.RowsAffected()

@@ -49,7 +49,7 @@ func (d *dict) Delete(key string) error {
 }
 
 func (d *dict) List() (Cursor, error) {
-	return d.Query("select_all", MapEntrySCanner)
+	return d.Query("select_all", MapEntryScanner)
 }
 
 func (d *dict) Clear() error {
@@ -60,29 +60,8 @@ func (d *dict) Close() error {
 	return d.Bome.sqlDb.Close()
 }
 
-// NewSQLMap creates an sql map which entries are store in a table that have name created with concataning name and '_map'
-func NewSQLMap(dsn string, name string) (Map, error) {
-	d := new(dict)
-	db, err := Open(dsn)
-	if err != nil {
-		return nil, nil
-	}
-	d.Bome = db
-
-	d.SetTablePrefix(name).
-		AddTableDefinition("create table if not exists $prefix$_map (name varchar(255) not null primary key, val longblob not null);").
-		AddStatement("insert", "insert into $prefix$_mapping values (?, ?);").
-		AddStatement("update", "update $prefix$_mapping set val=? where name=?;").
-		AddStatement("select", "select value from $prefix$_mapping where name=?;").
-		AddStatement("select_all", "select * from $prefix$_mapping;").
-		AddStatement("contains", "select 1 from $prefix$_mapping where name=?;").
-		AddStatement("delete", "delete from $prefix$_mapping where name=?;").
-		AddStatement("clear", "delete from $prefix$_mapping;")
-	return d, d.Init()
-}
-
 // MapFromSQLDB creates MySQL wrapped map
-func MapFromSQLDB(dialect string, db *sql.DB, name string) (Map, error) {
+func MapFromSQLDB(dialect string, db *sql.DB, tableName string) (Map, error) {
 	d := new(dict)
 	var err error
 
@@ -98,14 +77,14 @@ func MapFromSQLDB(dialect string, db *sql.DB, name string) (Map, error) {
 		return nil, err
 	}
 
-	d.SetTablePrefix(name).
-		AddTableDefinition("create table if not exists $prefix$_map (name varchar(255) not null primary key, value longtext not null);").
-		AddStatement("insert", "insert into $prefix$_map values (?, ?);").
-		AddStatement("update", "update $prefix$_map set value=? where name=?;").
-		AddStatement("select", "select value from $prefix$_map where name=?;").
-		AddStatement("select_all", "select * from $prefix$_map;").
-		AddStatement("contains", "select 1 from $prefix$_map where name=?;").
-		AddStatement("delete", "delete from $prefix$_map where name=?;").
-		AddStatement("clear", "delete from $prefix$_map;")
+	d.SetTablePrefix(tableName).
+		AddTableDefinition("create table if not exists $prefix$ (name varchar(255) not null primary key, value longtext not null);").
+		AddStatement("insert", "insert into $prefix$ values (?, ?);").
+		AddStatement("update", "update $prefix$ set value=? where name=?;").
+		AddStatement("select", "select value from $prefix$ where name=?;").
+		AddStatement("select_all", "select * from $prefix$;").
+		AddStatement("contains", "select 1 from $prefix$ where name=?;").
+		AddStatement("delete", "delete from $prefix$ where name=?;").
+		AddStatement("clear", "delete from $prefix$;")
 	return d, d.Init()
 }

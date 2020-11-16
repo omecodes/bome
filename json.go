@@ -1,0 +1,72 @@
+package bome
+
+import (
+	"fmt"
+	"strings"
+)
+
+type JsonValueHolder interface {
+	EditAll(path string, ex Expression) error
+	EditAllMatching(path string, ex Expression, condition BoolExpr) error
+	ExtractAll(path string, condition BoolExpr, scannerName string) (Cursor, error)
+	Search(condition BoolExpr, scannerName string) (Cursor, error)
+}
+
+func NewJsonValueHolder(table string, field string, db *Bome) JsonValueHolder {
+	return &jsonValueHolder{
+		field: field,
+		table: table,
+		Bome:  db,
+	}
+}
+
+type jsonValueHolder struct {
+	field string
+	table string
+	*Bome
+}
+
+func (s *jsonValueHolder) EditAll(path string, ex Expression) error {
+	rawQuery := fmt.Sprintf(
+		"update %s set __value__=json_set(%s, '%s', %s);",
+		s.table,
+		s.field,
+		normalizedJsonPath(path),
+		ex.eval(),
+	)
+	rawQuery = strings.Replace(rawQuery, "__value__", s.field, -1)
+	return s.RawExec(rawQuery).Error
+}
+
+func (s *jsonValueHolder) EditAllMatching(path string, ex Expression, condition BoolExpr) error {
+	rawQuery := fmt.Sprintf(
+		"update %s set __value__=json_insert(%s, '%s', %s) where %s",
+		s.table,
+		s.field,
+		normalizedJsonPath(path),
+		ex.eval(),
+		condition.sql(),
+	)
+	rawQuery = strings.Replace(rawQuery, "__value__", s.field, -1)
+	return s.RawExec(rawQuery).Error
+}
+
+func (s *jsonValueHolder) ExtractAll(path string, condition BoolExpr, scannerName string) (Cursor, error) {
+	rawQuery := fmt.Sprintf("select json_unquote(json_extract(%s, '%s')) from %s where %s;",
+		s.field,
+		path,
+		s.table,
+		condition.sql(),
+	)
+	rawQuery = strings.Replace(rawQuery, "__value__", s.field, -1)
+	return s.RawQuery(rawQuery, scannerName)
+}
+
+func (s *jsonValueHolder) Search(condition BoolExpr, scannerName string) (Cursor, error) {
+	rawQuery := fmt.Sprintf("select * from %s where %s;",
+		s.table,
+		condition.sql(),
+	)
+	rawQuery = strings.Replace(rawQuery, "__value__", s.field, -1)
+	return s.RawQuery(rawQuery, scannerName)
+}
