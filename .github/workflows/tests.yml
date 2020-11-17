@@ -9,7 +9,7 @@ on:
 
 
 jobs:
-  tests MySQL:
+  tests_mysql:
     name: Run bome unit tests
     runs-on: ubuntu-latest
     env:
@@ -52,7 +52,7 @@ jobs:
       - name: Test
         run: go test -v .
 
-  tests SQLite:
+  tests_sqlite:
     name: Run bome unit tests on SQLite
     runs-on: ubuntu-latest
     steps:
