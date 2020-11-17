@@ -1,16 +1,10 @@
-name: API
+name: UNIT TESTS
 
 on:
   create:
     tags:
       - 'v*'
-
   workflow_dispatch:
-    inputs:
-      fx_debug:
-        description: 'Enables debug mode'
-        required: false
-        default: true
 
 jobs:
 
