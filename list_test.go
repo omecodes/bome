@@ -28,7 +28,7 @@ func initList(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(db, ShouldNotBeNil)
 
-		_, err = db.Exec("drop table list")
+		_, err = db.Exec("drop table if exists list")
 		So(err, ShouldBeNil)
 
 		list, err = ListFromSQLDB(testDialect, db, "list")

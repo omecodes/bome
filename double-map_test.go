@@ -39,7 +39,7 @@ func initDoubleDbMap(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(db, ShouldNotBeNil)
 
-		_, err = db.Exec("drop table d_map")
+		_, err = db.Exec("drop table if exists d_map")
 		So(err, ShouldBeNil)
 
 		dbDoubleMap, err = DMapFromSQLDB(db, testDialect, "d_map")

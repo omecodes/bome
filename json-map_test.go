@@ -37,7 +37,7 @@ func initJsonDbMap(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(db, ShouldNotBeNil)
 
-		_, err = db.Exec("drop table j_map")
+		_, err = db.Exec("drop table if exists j_map")
 		So(err, ShouldBeNil)
 
 		dbJsonMap, err = NewJSONMap(db, testDialect, "j_map")

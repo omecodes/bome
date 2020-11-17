@@ -24,7 +24,7 @@ func initJsonList(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(db, ShouldNotBeNil)
 
-		_, err = db.Exec("drop table j_list")
+		_, err = db.Exec("drop table if exists j_list")
 		So(err, ShouldBeNil)
 
 		dbJsonList, err = NewJSONList(db, testDialect, "j_list")
