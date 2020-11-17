@@ -9,7 +9,7 @@ on:
 jobs:
 
   tests:
-    name: Test Firex server API with postman
+    name: Run bome unit tests
     runs-on: ubuntu-latest
 
     steps:
