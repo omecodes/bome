@@ -4,6 +4,7 @@ import "database/sql"
 
 // DoubleMap is a convenience for double mapping persistent store
 type DoubleMap interface {
+	Contains(firstKey, secondKey string) (bool, error)
 	Save(m *DoubleMapEntry) error
 	Get(firstKey, secondKey string) (string, error)
 	GetForFirst(firstKey string) (Cursor, error)
@@ -18,6 +19,11 @@ type DoubleMap interface {
 
 type doubleMap struct {
 	*Bome
+}
+
+func (s *doubleMap) Contains(firstKey, secondKey string) (bool, error) {
+	o, err := s.QueryFirst("contains", BoolScanner, firstKey, secondKey)
+	return o.(bool), err
 }
 
 func (s *doubleMap) Save(m *DoubleMapEntry) error {
@@ -67,21 +73,24 @@ func (s *doubleMap) Close() error {
 	return s.Bome.sqlDb.Close()
 }
 
-// DMapFromSQLDB creates MySQL wrapped DoubleMap
-func DMapFromSQLDB(db *sql.DB, dialect string, tableName string) (DoubleMap, error) {
+// NewDoubleMap creates MySQL wrapped DoubleMap
+func NewDoubleMap(db *sql.DB, dialect string, tableName string) (DoubleMap, error) {
 	d := new(doubleMap)
 	var err error
 
 	if dialect == SQLite3 {
 		d.Bome, err = NewLite(db)
+
 	} else if dialect == MySQL {
 		d.Bome, err = New(db)
+
 	} else {
 		return nil, DialectNotSupported
 	}
 
 	d.SetTablePrefix(tableName).
 		AddTableDefinition("create table if not exists $prefix$ (first_key varchar(255) not null, second_key varchar(255) not null, value longtext not null);").
+		AddStatement("contains", "select 1 from $prefix$ where first_key=? and second_key=?;").
 		AddStatement("insert", "insert into $prefix$ values (?, ?, ?);").
 		AddStatement("update", "update $prefix$ set value=? where first_key=? and second_key=?;").
 		AddStatement("select", "select value from $prefix$ where first_key=? and second_key=?;").

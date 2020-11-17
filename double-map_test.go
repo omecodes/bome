@@ -42,7 +42,11 @@ func initDoubleDbMap(t *testing.T) {
 		_, err = db.Exec("drop table if exists d_map")
 		So(err, ShouldBeNil)
 
-		dbDoubleMap, err = DMapFromSQLDB(db, testDialect, "d_map")
+		dbDoubleMap, err = NewDoubleMap(db, "unsupported", "d_map")
+		So(err, ShouldNotBeNil)
+		So(dbDoubleMap, ShouldBeNil)
+
+		dbDoubleMap, err = NewDoubleMap(db, testDialect, "d_map")
 		So(err, ShouldBeNil)
 		So(dbDoubleMap, ShouldNotBeNil)
 	}
@@ -84,6 +88,15 @@ func TestDoubleMap_Save(t *testing.T) {
 		So(err, ShouldBeNil)
 		err = dbDoubleMap.Save(&doubleMapEntry42)
 		So(err, ShouldBeNil)
+	})
+}
+
+func TestDoubleMap_Contains(t *testing.T) {
+	Convey("Contains", t, func() {
+		initDoubleDbMap(t)
+		contains, err := dbDoubleMap.Contains("fk1", "sk1")
+		So(err, ShouldBeNil)
+		So(contains, ShouldBeTrue)
 	})
 }
 

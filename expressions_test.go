@@ -184,3 +184,10 @@ func TestEndsWith(t *testing.T) {
 		testExpression(t, e.sql())
 	})
 }
+
+func TestFieldExpression(t *testing.T) {
+	Convey("Field expression", t, func() {
+		/*e := Eq( FieldExpression("value"))
+		testExpression(t, e.sql()) */
+	})
+}

@@ -60,8 +60,8 @@ func (d *dict) Close() error {
 	return d.Bome.sqlDb.Close()
 }
 
-// MapFromSQLDB creates MySQL wrapped map
-func MapFromSQLDB(dialect string, db *sql.DB, tableName string) (Map, error) {
+// NewMap creates MySQL wrapped map
+func NewMap(db *sql.DB, dialect string, tableName string) (Map, error) {
 	d := new(dict)
 	var err error
 

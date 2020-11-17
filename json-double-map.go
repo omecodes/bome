@@ -40,8 +40,8 @@ func (s *jsonDoubleMap) ExtractAt(firstKey, secondKey string, path string) (stri
 	return o.(string), nil
 }
 
-// NewJSONDoubleMapDB creates MySQL wrapped DoubleMap
-func NewJSONDoubleMapDB(db *sql.DB, dialect string, tableName string) (JSONDoubleMap, error) {
+// NewJSONDoubleMap creates MySQL wrapped DoubleMap
+func NewJSONDoubleMap(db *sql.DB, dialect string, tableName string) (JSONDoubleMap, error) {
 	d := new(jsonDoubleMap)
 	d.doubleMap = new(doubleMap)
 	d.tableName = tableName

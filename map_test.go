@@ -31,9 +31,13 @@ func initDbMap(t *testing.T) {
 		_, err = db.Exec("drop table if exists map")
 		So(err, ShouldBeNil)
 
-		dbMap, err = MapFromSQLDB(testDialect, db, "map")
+		dbMap, err = NewMap(db, "unsupported", "map")
+		So(err, ShouldNotBeNil)
+		So(dbMap, ShouldBeNil)
+
+		dbMap, err = NewMap(db, testDialect, "map")
 		So(err, ShouldBeNil)
-		So(list, ShouldNotBeNil)
+		So(dbMap, ShouldNotBeNil)
 	}
 }
 

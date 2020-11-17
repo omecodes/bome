@@ -80,8 +80,8 @@ func (l *listDB) Close() error {
 	return l.Bome.sqlDb.Close()
 }
 
-// ListFromSQLDB creates MySQL wrapped list
-func ListFromSQLDB(dialect string, db *sql.DB, name string) (List, error) {
+// NewList creates MySQL wrapped list
+func NewList(db *sql.DB, dialect string, tableName string) (List, error) {
 	d := new(listDB)
 	var err error
 
@@ -97,7 +97,7 @@ func ListFromSQLDB(dialect string, db *sql.DB, name string) (List, error) {
 		return nil, err
 	}
 
-	d.SetTablePrefix(name).
+	d.SetTablePrefix(tableName).
 		AddTableDefinition("create table if not exists $prefix$ (ind integer not null primary key $auto_increment$, value longtext not null);").
 		AddStatement("insert", "insert into $prefix$ (value) values (?);").
 		AddStatement("select", "select * from $prefix$ where ind=?;").
