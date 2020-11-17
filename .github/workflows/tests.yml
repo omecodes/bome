@@ -6,12 +6,16 @@ on:
       - 'v*'
   workflow_dispatch:
 
-jobs:
 
-  tests:
+
+jobs:
+  tests MySQL:
     name: Run bome unit tests
     runs-on: ubuntu-latest
-
+    env:
+      BOME_JSON_TESTS_ENABLED: 1
+      BOME_TESTS_DB: bome:bome@tcp(localhost:3306)/bome?charset=utf8
+      BOME_TESTS_DIALECT: mysql
     steps:
 
       - name: Set up Go 1.x
@@ -44,6 +48,30 @@ jobs:
           mysql root password: 'bome'
           mysql user: 'bome'
           mysql password: 'bome'
+
+      - name: Test
+        run: go test -v .
+
+  tests SQLite:
+    name: Run bome unit tests on SQLite
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Go 1.x
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.15
+        id: go
+
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v2
+
+      - name: Get dependencies
+        run: |
+          go get -v -t -d ./...
+          if [ -f Gopkg.toml ]; then
+              curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+              dep ensure
+          fi
 
       - name: Test
         run: go test -v .
