@@ -5,8 +5,8 @@ import "database/sql"
 // List is a convenience for persistence list
 type List interface {
 	Append(*ListEntry) error
-	GetAt(index int64) (string, error)
-	GetNextFromSeq(index int64) (string, error)
+	GetAt(index int64) (*ListEntry, error)
+	GetNextFromSeq(index int64) (*ListEntry, error)
 	GetAllFromSeq(index int64) (Cursor, error)
 	Delete(index int64) error
 	MinIndex() (int64, error)
@@ -24,12 +24,12 @@ func (l *listDB) Append(entry *ListEntry) error {
 	return l.Exec("insert", entry.Value).Error
 }
 
-func (l *listDB) GetAt(index int64) (string, error) {
-	o, err := l.QueryFirst("select", StringScanner, index)
+func (l *listDB) GetAt(index int64) (*ListEntry, error) {
+	o, err := l.QueryFirst("select", ListEntryScanner, index)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return o.(string), nil
+	return o.(*ListEntry), nil
 }
 
 func (l *listDB) MinIndex() (int64, error) {
@@ -41,7 +41,7 @@ func (l *listDB) MinIndex() (int64, error) {
 }
 
 func (l *listDB) MaxIndex() (int64, error) {
-	res, err := l.QueryFirst("select_min_index", IntScanner)
+	res, err := l.QueryFirst("select_max_index", IntScanner)
 	if err != nil {
 		return 0, err
 	}
@@ -49,19 +49,19 @@ func (l *listDB) MaxIndex() (int64, error) {
 }
 
 func (l *listDB) Count() (int64, error) {
-	res, err := l.QueryFirst("select_count", "index")
+	res, err := l.QueryFirst("select_count", IntScanner)
 	if err != nil {
 		return 0, err
 	}
 	return res.(int64), nil
 }
 
-func (l *listDB) GetNextFromSeq(index int64) (string, error) {
-	o, err := l.QueryFirst("select_from", StringScanner, IntScanner)
+func (l *listDB) GetNextFromSeq(index int64) (*ListEntry, error) {
+	o, err := l.QueryFirst("select_from", ListEntryScanner, index)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return o.(string), nil
+	return o.(*ListEntry), nil
 }
 
 func (l *listDB) GetAllFromSeq(index int64) (Cursor, error) {
@@ -98,15 +98,15 @@ func ListFromSQLDB(dialect string, db *sql.DB, name string) (List, error) {
 	}
 
 	d.SetTablePrefix(name).
-		AddTableDefinition("create table if not exists $prefix$_list (ind integer not null primary key $auto_increment$, value longtext not null);").
-		AddStatement("insert", "insert into $prefix$_list (value) values (?);").
-		AddStatement("select", "select * from $prefix$_list where ind=?;").
-		AddStatement("select_min_index", "select min(ind) from $prefix$_list;").
-		AddStatement("select_max_index", "select max(ind) from $prefix$_list;").
-		AddStatement("select_count", "select count(ind) from $prefix$_list;").
-		AddStatement("select_from", "select * from $prefix$_list where ind>? order by ind asc;").
-		AddStatement("delete_by_seq", "delete from $prefix$_list where ind=?;").
-		AddStatement("clear", "delete from $prefix$_list;")
+		AddTableDefinition("create table if not exists $prefix$ (ind integer not null primary key $auto_increment$, value longtext not null);").
+		AddStatement("insert", "insert into $prefix$ (value) values (?);").
+		AddStatement("select", "select * from $prefix$ where ind=?;").
+		AddStatement("select_min_index", "select min(ind) from $prefix$;").
+		AddStatement("select_max_index", "select max(ind) from $prefix$;").
+		AddStatement("select_count", "select count(ind) from $prefix$;").
+		AddStatement("select_from", "select * from $prefix$ where ind>? order by ind;").
+		AddStatement("delete_by_seq", "delete from $prefix$ where ind=?;").
+		AddStatement("clear", "delete from $prefix$;")
 	err = d.init()
 	return d, err
 }

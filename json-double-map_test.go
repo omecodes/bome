@@ -38,6 +38,9 @@ func initJsonDoubleDbMap(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(db, ShouldNotBeNil)
 
+		_, err = db.Exec("drop table jd_map;")
+		So(err, ShouldBeNil)
+
 		dbJsonDoubleMap, err = NewJSONDoubleMapDB(db, testDialect, "jd_map")
 		So(err, ShouldBeNil)
 		So(dbJsonDoubleMap, ShouldNotBeNil)

@@ -28,6 +28,9 @@ func initDbMap(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(db, ShouldNotBeNil)
 
+		_, err = db.Exec("drop table map")
+		So(err, ShouldBeNil)
+
 		dbMap, err = MapFromSQLDB(testDialect, db, "map")
 		So(err, ShouldBeNil)
 		So(list, ShouldNotBeNil)

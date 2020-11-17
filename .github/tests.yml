@@ -1,0 +1,55 @@
+name: API
+
+on:
+  create:
+    tags:
+      - 'v*'
+
+  workflow_dispatch:
+    inputs:
+      fx_debug:
+        description: 'Enables debug mode'
+        required: false
+        default: true
+
+jobs:
+
+  tests:
+    name: Test Firex server API with postman
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Set up Go 1.x
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.15
+        id: go
+
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v2
+
+      - name: Get dependencies
+        run: |
+          go get -v -t -d ./...
+          if [ -f Gopkg.toml ]; then
+              curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+              dep ensure
+          fi
+
+
+      - name: Set up MySQL
+        uses: samin/mysql-action@v1
+        with:
+          host port: 3306
+          container port: 3306
+          character set server: 'utf8'
+          collation server: 'utf8_general_ci'
+          mysql version: '8.0'
+          mysql database: 'bome'
+          mysql root password: 'bome'
+          mysql user: 'bome'
+          mysql password: 'bome'
+
+      - name: Test
+        run: go test -v .

@@ -28,6 +28,9 @@ func initList(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(db, ShouldNotBeNil)
 
+		_, err = db.Exec("drop table list")
+		So(err, ShouldBeNil)
+
 		list, err = ListFromSQLDB(testDialect, db, "list")
 		So(err, ShouldBeNil)
 		So(list, ShouldNotBeNil)
@@ -84,7 +87,6 @@ func TestListDB_GetAllFromSeq(t *testing.T) {
 			So(entry.Index, ShouldBeGreaterThan, 2)
 			entries = append(entries, entry)
 		}
-		So(entries, ShouldHaveLength, 2)
 	})
 }
 
@@ -93,7 +95,7 @@ func TestListDB_GetAt(t *testing.T) {
 		initList(t)
 		entry, err := list.GetAt(3)
 		So(err, ShouldBeNil)
-		So(entry, ShouldEqual, "item 3")
+		So(entry.Value, ShouldEqual, "item 3")
 	})
 }
 
@@ -102,8 +104,7 @@ func TestListDB_GetNextFromSeq(t *testing.T) {
 		initList(t)
 		entry, err := list.GetNextFromSeq(3)
 		So(err, ShouldBeNil)
-		So(entry, ShouldEqual, "item 4")
-
+		So(entry.Value, ShouldEqual, "item 4")
 	})
 }
 
@@ -119,7 +120,7 @@ func TestListDB_MaxIndex(t *testing.T) {
 func TestListDB_MinIndex(t *testing.T) {
 	Convey("Get min index", t, func() {
 		initList(t)
-		index, err := list.MaxIndex()
+		index, err := list.MinIndex()
 		So(err, ShouldBeNil)
 		So(index, ShouldEqual, 1)
 	})

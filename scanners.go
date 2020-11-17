@@ -34,7 +34,8 @@ var defaultScanners = map[string]Scanner{
 	}),
 	BoolScanner: NewScannerFunc(func(row Row) (interface{}, error) {
 		var v int
-		return v == 1, row.Scan(&v)
+		err := row.Scan(&v)
+		return v == 1, err
 	}),
 	StringScanner: NewScannerFunc(func(row Row) (interface{}, error) {
 		var v string
