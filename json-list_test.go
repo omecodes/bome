@@ -48,14 +48,30 @@ func TestJsonListDB_Save(t *testing.T) {
 		initJsonList(t)
 
 		var err error
-		err = dbJsonList.Append(&ListEntry{Value: doc1})
+		err = dbJsonList.Save(&ListEntry{Value: doc1})
 		So(err, ShouldBeNil)
 
-		err = dbJsonList.Append(&ListEntry{Value: doc2})
+		err = dbJsonList.Save(&ListEntry{Value: doc2})
 		So(err, ShouldBeNil)
 
-		err = dbJsonList.Append(&ListEntry{Value: doc3})
+		err = dbJsonList.Save(&ListEntry{Value: doc3})
 		So(err, ShouldBeNil)
+	})
+}
+
+func TestJsonListDB_EditAt(t *testing.T) {
+	Convey("Edit at", t, func() {
+		initJsonList(t)
+		err := dbJsonList.EditAt(3, "$.address.commune", "'Yahou'")
+		So(err, ShouldBeNil)
+	})
+}
+
+func TestJsonListDB_ExtractAt(t *testing.T) {
+	Convey("Extract at", t, func() {
+		value, err := dbJsonList.ExtractAt(3, "$.address.commune")
+		So(err, ShouldBeNil)
+		So(value, ShouldEqual, "Yahou")
 	})
 }
 

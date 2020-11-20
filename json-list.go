@@ -8,7 +8,7 @@ import (
 // JSONList is a convenience for persistence list
 type JSONList interface {
 	List
-	EditAt(index int64, path string, data string) error
+	EditAt(index int64, path string, sqlValue string) error
 	ExtractAt(index int64, path string) (string, error)
 }
 
@@ -19,13 +19,15 @@ type jsonListDB struct {
 	tableName string
 }
 
-func (l *jsonListDB) EditAt(index int64, path string, value string) error {
-	return l.Exec("update", path, value, index).Error
+func (l *jsonListDB) EditAt(index int64, path string, sqlValue string) error {
+	rawQuery := fmt.Sprintf(
+		"update %s set value=json_set(value, '%s', %s) where ind=?;", l.tableName, path, sqlValue)
+	return l.RawExec(rawQuery, index).Error
 }
 
 func (l *jsonListDB) ExtractAt(index int64, path string) (string, error) {
 	rawQuery := fmt.Sprintf(
-		"select json_unquote(json_extract((value, '%s'))) from %s where ind=?;", path, l.tableName)
+		"select json_unquote(json_extract(value, '%s')) from %s where ind=?;", path, l.tableName)
 	o, err := l.RawQueryFirst(rawQuery, StringScanner, index)
 	if err != nil {
 		return "", err
@@ -62,7 +64,8 @@ func NewJSONList(db *sql.DB, dialect string, tableName string) (JSONList, error)
 
 	d.SetTablePrefix(tableName).
 		AddTableDefinition("create table if not exists $prefix$ (ind integer not null primary key $auto_increment$, value json not null);").
-		AddStatement("insert", "insert into $prefix$ (value) values (?);").
+		AddStatement("insert", "insert into $prefix$ values (?, ?);").
+		AddStatement("append", "insert into $prefix$ (value) values (?);").
 		AddStatement("select", "select * from $prefix$ where ind=?;").
 		AddStatement("select_min_index", "select min(ind) from $prefix$;").
 		AddStatement("select_max_index", "select max(ind) from $prefix$;").

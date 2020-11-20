@@ -10,6 +10,7 @@ type JsonValueHolder interface {
 	EditAllMatching(path string, ex Expression, condition BoolExpr) error
 	ExtractAll(path string, condition BoolExpr, scannerName string) (Cursor, error)
 	Search(condition BoolExpr, scannerName string) (Cursor, error)
+	RangeOf(condition BoolExpr, scannerName string, offset, count int) (Cursor, error)
 }
 
 func NewJsonValueHolder(table string, field string, db *Bome) JsonValueHolder {
@@ -69,4 +70,13 @@ func (s *jsonValueHolder) Search(condition BoolExpr, scannerName string) (Cursor
 	)
 	rawQuery = strings.Replace(rawQuery, "__value__", s.field, -1)
 	return s.RawQuery(rawQuery, scannerName)
+}
+
+func (s *jsonValueHolder) RangeOf(condition BoolExpr, scannerName string, offset, count int) (Cursor, error) {
+	rawQuery := fmt.Sprintf("select * from %s where %s limit ?, ?;",
+		s.table,
+		condition.sql(),
+	)
+	rawQuery = strings.Replace(rawQuery, "__value__", s.field, -1)
+	return s.RawQuery(rawQuery, scannerName, offset, count)
 }

@@ -76,6 +76,19 @@ func TestDict_Contains(t *testing.T) {
 	})
 }
 
+func TestDict_Range(t *testing.T) {
+	Convey("Range", t, func() {
+		initDbMap(t)
+		entries, err := dbMap.Range(1, 3)
+		So(err, ShouldBeNil)
+		So(entries, ShouldHaveLength, 3)
+
+		for _, entry := range entries {
+			So(entry.Value, ShouldBeIn, "v2", "v3", "v4")
+		}
+	})
+}
+
 func TestDict_Get(t *testing.T) {
 	Convey("Test Map contains key k1", t, func() {
 		initDbMap(t)

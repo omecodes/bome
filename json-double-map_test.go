@@ -227,6 +227,30 @@ func TestJsonDoubleMap_SearchAtContains(t *testing.T) {
 	}
 }
 
+func TestJsonDoubleMap_Range(t *testing.T) {
+	if jsonTestEnabled {
+		Convey("Get range", t, func() {
+			cursor, err := dbJsonDoubleMap.RangeOf(
+				JsonAtContains("$.address.region", StringExpr("lagunes")), DoubleMapEntryScanner, 0, 2,
+			)
+
+			So(err, ShouldBeNil)
+			So(cursor, ShouldNotBeNil)
+			defer cursor.Close()
+
+			var entries []*DoubleMapEntry
+			for cursor.HasNext() {
+				o, err := cursor.Next()
+				So(err, ShouldBeNil)
+
+				entry := o.(*DoubleMapEntry)
+				entries = append(entries, entry)
+			}
+			So(entries, ShouldHaveLength, 2)
+		})
+	}
+}
+
 func TestJsonDoubleMap_SearchAtGt(t *testing.T) {
 	if jsonTestEnabled {
 		Convey("Search in json all people with identified 'commune'", t, func() {

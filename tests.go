@@ -1,8 +1,10 @@
 package bome
 
 import (
+	"flag"
 	"fmt"
 	"os"
+	"strings"
 )
 
 var (
@@ -56,11 +58,13 @@ func init() {
 		testDialect = SQLite3
 	}
 
-	fmt.Println()
-	fmt.Println()
-	fmt.Println("BOME_TESTS_DIALECT: ", testDialect)
-	fmt.Println("BOME_TESTS_DB     : ", testDBPath)
-	fmt.Println("JSON_TESTS_ENABLED: ", jsonTestEnabled)
-	fmt.Println()
-	fmt.Println()
+	if flag.Lookup("test.v") != nil || strings.HasSuffix(os.Args[0], ".test") || strings.Contains(os.Args[0], "/_test/") {
+		fmt.Println()
+		fmt.Println()
+		fmt.Println("BOME_TESTS_DIALECT: ", testDialect)
+		fmt.Println("BOME_TESTS_DB     : ", testDBPath)
+		fmt.Println("JSON_TESTS_ENABLED: ", jsonTestEnabled)
+		fmt.Println()
+		fmt.Println()
+	}
 }

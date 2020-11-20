@@ -47,7 +47,7 @@ func TestNewSQLList(t *testing.T) {
 	})
 }
 
-func TestListDB_Append(t *testing.T) {
+func TestListDB_Save(t *testing.T) {
 	Convey("Adding items to list", t, func() {
 		initList(t)
 
@@ -57,10 +57,10 @@ func TestListDB_Append(t *testing.T) {
 		err = list.Append(&ListEntry{Value: listItem2})
 		So(err, ShouldBeNil)
 
-		err = list.Append(&ListEntry{Value: listItem3})
+		err = list.Save(&ListEntry{Index: 3, Value: listItem3})
 		So(err, ShouldBeNil)
 
-		err = list.Append(&ListEntry{Value: listItem4})
+		err = list.Save(&ListEntry{Index: 4, Value: listItem4})
 		So(err, ShouldBeNil)
 	})
 }
@@ -90,6 +90,33 @@ func TestListDB_GetAllFromSeq(t *testing.T) {
 			entry := o.(*ListEntry)
 			So(entry.Index, ShouldBeGreaterThan, 2)
 			entries = append(entries, entry)
+		}
+	})
+}
+
+func TestListDB_RangeFromIndex(t *testing.T) {
+	Convey("Range from index", t, func() {
+		initList(t)
+		entries, err := list.RangeFromIndex(1, 0, 2)
+		So(err, ShouldBeNil)
+		So(entries, ShouldHaveLength, 2)
+
+		for _, entry := range entries {
+			So(entry.Value, ShouldBeIn, "item 2", "item 3")
+		}
+	})
+}
+
+func TestListDB_Range(t *testing.T) {
+	Convey("Range", t, func() {
+		initList(t)
+
+		entries, err := list.Range(2, 2)
+		So(err, ShouldBeNil)
+		So(entries, ShouldHaveLength, 2)
+
+		for _, entry := range entries {
+			So(entry.Value, ShouldBeIn, "item 3", "item 4")
 		}
 	})
 }

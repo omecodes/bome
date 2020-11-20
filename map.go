@@ -7,6 +7,7 @@ type Map interface {
 	Save(entry *MapEntry) error
 	Get(key string) (string, error)
 	Contains(key string) (bool, error)
+	Range(offset, count int) ([]*MapEntry, error)
 	Delete(key string) error
 	List() (Cursor, error)
 	Clear() error
@@ -42,6 +43,24 @@ func (d *dict) Contains(key string) (bool, error) {
 		return false, err
 	}
 	return res.(bool), nil
+}
+
+func (d *dict) Range(offset, count int) ([]*MapEntry, error) {
+	c, err := d.Query("range", MapEntryScanner, offset, count)
+	if err != nil {
+		return nil, err
+	}
+	defer c.Close()
+
+	var entries []*MapEntry
+	for c.HasNext() {
+		o, err := c.Next()
+		if err != nil {
+			return nil, err
+		}
+		entries = append(entries, o.(*MapEntry))
+	}
+	return entries, nil
 }
 
 func (d *dict) Delete(key string) error {
@@ -83,6 +102,7 @@ func NewMap(db *sql.DB, dialect string, tableName string) (Map, error) {
 		AddStatement("update", "update $prefix$ set value=? where name=?;").
 		AddStatement("select", "select value from $prefix$ where name=?;").
 		AddStatement("select_all", "select * from $prefix$;").
+		AddStatement("range", "select * from $prefix$ limit ?, ?;").
 		AddStatement("contains", "select 1 from $prefix$ where name=?;").
 		AddStatement("delete", "delete from $prefix$ where name=?;").
 		AddStatement("clear", "delete from $prefix$;")

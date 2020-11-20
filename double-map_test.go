@@ -13,7 +13,7 @@ var (
 
 	doubleMapEntry1  = DoubleMapEntry{FirstKey: "fk1", SecondKey: "sk1", Value: "fk1sk1"}
 	doubleMapEntry11 = DoubleMapEntry{FirstKey: "fk1", SecondKey: "sk2", Value: "fk1sk2"}
-	doubleMapEntry12 = DoubleMapEntry{FirstKey: "fk1", SecondKey: "sk3", Value: "fk1sk2"}
+	doubleMapEntry12 = DoubleMapEntry{FirstKey: "fk1", SecondKey: "sk3", Value: "fk1sk3"}
 
 	doubleMapEntry2  = DoubleMapEntry{FirstKey: "fk2", SecondKey: "sk1", Value: "fk2sk1"}
 	doubleMapEntry21 = DoubleMapEntry{FirstKey: "fk2", SecondKey: "sk2", Value: "fk2sk2"}
@@ -106,6 +106,42 @@ func TestDoubleMap_Get(t *testing.T) {
 		value, err := dbDoubleMap.Get("fk1", "sk1")
 		So(err, ShouldBeNil)
 		So(value, ShouldEqual, "fk1sk1")
+	})
+}
+
+func TestDoubleMap_RangeMatchingFirstKey(t *testing.T) {
+	Convey("Range matching first key", t, func() {
+		initDoubleDbMap(t)
+		entries, err := dbDoubleMap.RangeMatchingFirstKey("fk1", 1, 2)
+		So(err, ShouldBeNil)
+		So(entries, ShouldHaveLength, 2)
+		for _, entry := range entries {
+			So(entry.Value, ShouldBeIn, "fk1sk2", "fk1sk3")
+		}
+	})
+}
+
+func TestDoubleMap_RangeMatchingSecondKey(t *testing.T) {
+	Convey("Range matching first key", t, func() {
+		initDoubleDbMap(t)
+		entries, err := dbDoubleMap.RangeMatchingSecondKey("sk1", 1, 2)
+		So(err, ShouldBeNil)
+		So(entries, ShouldHaveLength, 2)
+		for _, entry := range entries {
+			So(entry.Value, ShouldBeIn, "fk2sk1", "fk3sk1")
+		}
+	})
+}
+
+func TestDoubleMap_Range(t *testing.T) {
+	Convey("Range", t, func() {
+		initDoubleDbMap(t)
+		entries, err := dbDoubleMap.Range(0, 2)
+		So(err, ShouldBeNil)
+		So(entries, ShouldHaveLength, 2)
+		for _, entry := range entries {
+			So(entry.Value, ShouldBeIn, "fk1sk1", "fk1sk2")
+		}
 	})
 }
 

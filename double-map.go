@@ -7,6 +7,9 @@ type DoubleMap interface {
 	Contains(firstKey, secondKey string) (bool, error)
 	Save(m *DoubleMapEntry) error
 	Get(firstKey, secondKey string) (string, error)
+	RangeMatchingFirstKey(key string, offset, count int) ([]*MapEntry, error)
+	RangeMatchingSecondKey(key string, offset, count int) ([]*MapEntry, error)
+	Range(offset, count int) ([]*DoubleMapEntry, error)
 	GetForFirst(firstKey string) (Cursor, error)
 	GetForSecond(secondKey string) (Cursor, error)
 	GetAll() (Cursor, error)
@@ -39,6 +42,64 @@ func (s *doubleMap) Get(firstKey, secondKey string) (string, error) {
 		return "", err
 	}
 	return o.(string), nil
+}
+
+func (s *doubleMap) RangeMatchingFirstKey(key string, offset, count int) ([]*MapEntry, error) {
+	c, err := s.Query("range_of_first_key", MapEntryScanner, key, offset, count)
+	if err != nil {
+		return nil, err
+	}
+
+	defer c.Close()
+	var entries []*MapEntry
+
+	for c.HasNext() {
+		o, err := c.Next()
+		if err != nil {
+			return nil, err
+		}
+
+		entries = append(entries, o.(*MapEntry))
+	}
+	return entries, nil
+}
+
+func (s *doubleMap) RangeMatchingSecondKey(key string, offset, count int) ([]*MapEntry, error) {
+	c, err := s.Query("range_of_second_key", MapEntryScanner, key, offset, count)
+	if err != nil {
+		return nil, err
+	}
+
+	defer c.Close()
+	var entries []*MapEntry
+
+	for c.HasNext() {
+		o, err := c.Next()
+		if err != nil {
+			return nil, err
+		}
+		entries = append(entries, o.(*MapEntry))
+	}
+	return entries, nil
+}
+
+func (s *doubleMap) Range(offset, count int) ([]*DoubleMapEntry, error) {
+	c, err := s.Query("range", DoubleMapEntryScanner, offset, count)
+	if err != nil {
+		return nil, err
+	}
+
+	defer c.Close()
+	var entries []*DoubleMapEntry
+
+	for c.HasNext() {
+		o, err := c.Next()
+		if err != nil {
+			return nil, err
+		}
+		entries = append(entries, o.(*DoubleMapEntry))
+	}
+	return entries, nil
 }
 
 func (s *doubleMap) GetForFirst(firstKey string) (Cursor, error) {
@@ -97,6 +158,9 @@ func NewDoubleMap(db *sql.DB, dialect string, tableName string) (DoubleMap, erro
 		AddStatement("select_by_first_key", "select second_key, value from $prefix$ where first_key=?;").
 		AddStatement("select_by_second_key", "select first_key, value from $prefix$ where second_key=?;").
 		AddStatement("select_all", "select * from $prefix$;").
+		AddStatement("range_of_first_key", "select second_key, value from $prefix$ where first_key=? limit ?, ?;").
+		AddStatement("range_of_second_key", "select first_key, value from $prefix$ where second_key=? limit ?, ?;").
+		AddStatement("range", "select * from $prefix$ limit ?, ?;").
 		AddStatement("delete", "delete from $prefix$ where first_key=? and second_key=?;").
 		AddStatement("delete_by_first_key", "delete from $prefix$ where first_key=?;").
 		AddStatement("delete_by_second_key", "delete from $prefix$ where second_key=?;").
