@@ -27,6 +27,10 @@ type jsonValueHolder struct {
 	*Bome
 }
 
+func (s *jsonValueHolder) Client() Client {
+	return s.Bome
+}
+
 func (s *jsonValueHolder) EditAll(path string, ex Expression) error {
 	rawQuery := fmt.Sprintf(
 		"update %s set __value__=json_set(%s, '%s', %s);",
@@ -36,7 +40,7 @@ func (s *jsonValueHolder) EditAll(path string, ex Expression) error {
 		ex.eval(),
 	)
 	rawQuery = strings.Replace(rawQuery, "__value__", s.field, -1)
-	return s.RawExec(rawQuery).Error
+	return s.Client().SQLExec(rawQuery)
 }
 
 func (s *jsonValueHolder) EditAllMatching(path string, ex Expression, condition BoolExpr) error {
@@ -49,7 +53,7 @@ func (s *jsonValueHolder) EditAllMatching(path string, ex Expression, condition 
 		condition.sql(),
 	)
 	rawQuery = strings.Replace(rawQuery, "__value__", s.field, -1)
-	return s.RawExec(rawQuery).Error
+	return s.Client().SQLExec(rawQuery)
 }
 
 func (s *jsonValueHolder) ExtractAll(path string, condition BoolExpr, scannerName string) (Cursor, error) {
@@ -60,7 +64,7 @@ func (s *jsonValueHolder) ExtractAll(path string, condition BoolExpr, scannerNam
 		condition.sql(),
 	)
 	rawQuery = strings.Replace(rawQuery, "__value__", s.field, -1)
-	return s.RawQuery(rawQuery, scannerName)
+	return s.Client().SQLQuery(rawQuery, scannerName)
 }
 
 func (s *jsonValueHolder) Search(condition BoolExpr, scannerName string) (Cursor, error) {
@@ -69,7 +73,7 @@ func (s *jsonValueHolder) Search(condition BoolExpr, scannerName string) (Cursor
 		condition.sql(),
 	)
 	rawQuery = strings.Replace(rawQuery, "__value__", s.field, -1)
-	return s.RawQuery(rawQuery, scannerName)
+	return s.Client().SQLQuery(rawQuery, scannerName)
 }
 
 func (s *jsonValueHolder) RangeOf(condition BoolExpr, scannerName string, offset, count int) (Cursor, error) {
@@ -78,5 +82,17 @@ func (s *jsonValueHolder) RangeOf(condition BoolExpr, scannerName string, offset
 		condition.sql(),
 	)
 	rawQuery = strings.Replace(rawQuery, "__value__", s.field, -1)
-	return s.RawQuery(rawQuery, scannerName, offset, count)
+	return s.Client().SQLQuery(rawQuery, scannerName, offset, count)
+}
+
+func (s *jsonValueHolder) BeginTransaction() (JsonValueHolderTransaction, error) {
+	tx, err := s.Bome.BeginTx()
+	if err != nil {
+		return nil, err
+	}
+
+	return &txJsonValueHolder{
+		JsonValueHolder: s,
+		tx:              tx,
+	}, nil
 }

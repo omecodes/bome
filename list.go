@@ -1,6 +1,9 @@
 package bome
 
-import "database/sql"
+import (
+	"database/sql"
+	"log"
+)
 
 // List is a convenience for persistence list
 type List interface {
@@ -24,15 +27,15 @@ type listDB struct {
 }
 
 func (l *listDB) Save(entry *ListEntry) error {
-	return l.Exec("insert", entry.Index, entry.Value).Error
+	return l.RawExec("insert into $prefix$ values (?, ?);", entry.Index, entry.Value).Error
 }
 
 func (l *listDB) Append(entry *ListEntry) error {
-	return l.Exec("append", entry.Value).Error
+	return l.RawExec("insert into $prefix$ (value) values (?);", entry.Value).Error
 }
 
 func (l *listDB) GetAt(index int64) (*ListEntry, error) {
-	o, err := l.QueryFirst("select", ListEntryScanner, index)
+	o, err := l.RawQueryFirst("select * from $prefix$ where ind=?;", ListEntryScanner, index)
 	if err != nil {
 		return nil, err
 	}
@@ -40,7 +43,7 @@ func (l *listDB) GetAt(index int64) (*ListEntry, error) {
 }
 
 func (l *listDB) MinIndex() (int64, error) {
-	res, err := l.QueryFirst("select_min_index", IntScanner)
+	res, err := l.RawQueryFirst("select min(ind) from $prefix$;", IntScanner)
 	if err != nil {
 		return 0, err
 	}
@@ -48,7 +51,7 @@ func (l *listDB) MinIndex() (int64, error) {
 }
 
 func (l *listDB) MaxIndex() (int64, error) {
-	res, err := l.QueryFirst("select_max_index", IntScanner)
+	res, err := l.RawQueryFirst("select max(ind) from $prefix$;", IntScanner)
 	if err != nil {
 		return 0, err
 	}
@@ -56,7 +59,7 @@ func (l *listDB) MaxIndex() (int64, error) {
 }
 
 func (l *listDB) Count() (int64, error) {
-	res, err := l.QueryFirst("select_count", IntScanner)
+	res, err := l.RawQueryFirst("select count(ind) from $prefix$;", IntScanner)
 	if err != nil {
 		return 0, err
 	}
@@ -64,7 +67,7 @@ func (l *listDB) Count() (int64, error) {
 }
 
 func (l *listDB) GetNextFromSeq(index int64) (*ListEntry, error) {
-	o, err := l.QueryFirst("select_from", ListEntryScanner, index)
+	o, err := l.RawQueryFirst("select * from $prefix$ where ind>? order by ind;", ListEntryScanner, index)
 	if err != nil {
 		return nil, err
 	}
@@ -72,12 +75,16 @@ func (l *listDB) GetNextFromSeq(index int64) (*ListEntry, error) {
 }
 
 func (l *listDB) RangeFromIndex(index int64, offset, count int) ([]*ListEntry, error) {
-	c, err := l.Query("range_from", ListEntryScanner, index, offset, count)
+	c, err := l.RawQuery("select * from $prefix$ where ind>? order by ind limit ?, ?;", ListEntryScanner, index, offset, count)
 	if err != nil {
 		return nil, err
 	}
 
-	defer c.Close()
+	defer func() {
+		if err := c.Close(); err != nil {
+			log.Println(err)
+		}
+	}()
 	var entries []*ListEntry
 	for c.HasNext() {
 		o, err := c.Next()
@@ -90,12 +97,17 @@ func (l *listDB) RangeFromIndex(index int64, offset, count int) ([]*ListEntry, e
 }
 
 func (l *listDB) Range(offset, count int) ([]*ListEntry, error) {
-	c, err := l.Query("range", ListEntryScanner, offset, count)
+	c, err := l.RawQuery("select * from $prefix$ order by ind limit ?, ?;", ListEntryScanner, offset, count)
 	if err != nil {
 		return nil, err
 	}
 
-	defer c.Close()
+	defer func() {
+		if err := c.Close(); err != nil {
+			log.Println(err)
+		}
+	}()
+
 	var entries []*ListEntry
 	for c.HasNext() {
 		o, err := c.Next()
@@ -108,15 +120,15 @@ func (l *listDB) Range(offset, count int) ([]*ListEntry, error) {
 }
 
 func (l *listDB) GetAllFromSeq(index int64) (Cursor, error) {
-	return l.Query("select_from", ListEntryScanner, index)
+	return l.RawQuery("select * from $prefix$ where ind>? order by ind;", ListEntryScanner, index)
 }
 
 func (l *listDB) Delete(index int64) error {
-	return l.Exec("delete_by_seq", index).Error
+	return l.RawExec("delete from $prefix$ where ind=?;", index).Error
 }
 
 func (l *listDB) Clear() error {
-	return l.Exec("clear").Error
+	return l.RawExec("delete from $prefix$;").Error
 }
 
 func (l *listDB) Close() error {
@@ -141,18 +153,8 @@ func NewList(db *sql.DB, dialect string, tableName string) (List, error) {
 	}
 
 	d.SetTablePrefix(tableName).
-		AddTableDefinition("create table if not exists $prefix$ (ind integer not null primary key $auto_increment$, value longtext not null);").
-		AddStatement("insert", "insert into $prefix$ values (?, ?);").
-		AddStatement("append", "insert into $prefix$ (value) values (?);").
-		AddStatement("select", "select * from $prefix$ where ind=?;").
-		AddStatement("select_min_index", "select min(ind) from $prefix$;").
-		AddStatement("select_max_index", "select max(ind) from $prefix$;").
-		AddStatement("select_count", "select count(ind) from $prefix$;").
-		AddStatement("select_from", "select * from $prefix$ where ind>? order by ind;").
-		AddStatement("range_from", "select * from $prefix$ where ind>? order by ind limit ?, ?;").
-		AddStatement("range", "select * from $prefix$ order by ind limit ?, ?;").
-		AddStatement("delete_by_seq", "delete from $prefix$ where ind=?;").
-		AddStatement("clear", "delete from $prefix$;")
+		AddTableDefinition(
+			"create table if not exists $prefix$ (ind integer not null primary key $auto_increment$, value longtext not null);")
 	err = d.init()
 	return d, err
 }

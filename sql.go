@@ -442,6 +442,61 @@ func (dbome *Bome) RawExec(rawQuery string, params ...interface{}) *Result {
 	return result
 }
 
+// SQLQuery executes a raw query.
+// scannerName: is one the registered scanner name
+func (dbome *Bome) SQLQuery(query string, scannerName string, params ...interface{}) (Cursor, error) {
+	for name, value := range dbome.vars {
+		query = strings.Replace(query, name, value, -1)
+	}
+	rows, err := dbome.sqlDb.Query(query, params...)
+	if err != nil {
+		return nil, err
+	}
+	scanner, err := dbome.findScanner(scannerName)
+	if err != nil {
+		return nil, err
+	}
+	return newCursor(rows, scanner), nil
+}
+
+// SQLQueryFirst gets the first result of the query result.
+// scannerName: is one the registered scanner name
+func (dbome *Bome) SQLQueryFirst(query string, scannerName string, params ...interface{}) (interface{}, error) {
+	for name, value := range dbome.vars {
+		query = strings.Replace(query, name, value, -1)
+	}
+
+	rows, err := dbome.sqlDb.Query(query, params...)
+	if err != nil {
+		return nil, err
+	}
+	scanner, err := dbome.findScanner(scannerName)
+	if err != nil {
+		return nil, err
+	}
+
+	cursor := newCursor(rows, scanner)
+	defer func() {
+		_ = cursor.Close()
+	}()
+
+	if !cursor.HasNext() {
+		return nil, EntryNotFound
+	}
+	return cursor.Next()
+}
+
+// SQLExec executes the given raw query
+func (dbome *Bome) SQLExec(rawQuery string, params ...interface{}) error {
+	dbome.wLock()
+	defer dbome.wUnlock()
+	for name, value := range dbome.vars {
+		rawQuery = strings.Replace(rawQuery, name, value, -1)
+	}
+	_, err := dbome.sqlDb.Exec(rawQuery, params...)
+	return err
+}
+
 // Query gets the results of the registered statement which name equals stmt
 func (dbome *Bome) Query(stmt string, scannerName string, params ...interface{}) (Cursor, error) {
 	dbome.rLock()

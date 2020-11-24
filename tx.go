@@ -12,7 +12,7 @@ type TX struct {
 }
 
 //SExec executes the statement saved as name
-func (tx *TX) SExec(name string, args ...interface{}) error {
+func (tx *TX) SQLExec(name string, args ...interface{}) error {
 	stmt, found := tx.dbome.registeredStatements[name]
 	if !found {
 		return errors.New("no statement found")
@@ -22,7 +22,7 @@ func (tx *TX) SExec(name string, args ...interface{}) error {
 }
 
 //SQuery executes the query statement saved as name
-func (tx *TX) SQuery(name string, scannerName string, args ...interface{}) (Cursor, error) {
+func (tx *TX) SQLQuery(name string, scannerName string, args ...interface{}) (Cursor, error) {
 	stmt, found := tx.dbome.registeredStatements[name]
 	if !found {
 		return nil, errors.New("no statement found")
@@ -40,7 +40,7 @@ func (tx *TX) SQuery(name string, scannerName string, args ...interface{}) (Curs
 }
 
 // SQueryFirst get the first result of the query statement saved as name
-func (tx *TX) SQueryFirst(name string, scannerName string, args ...interface{}) (interface{}, error) {
+func (tx *TX) SQLQueryFirst(name string, scannerName string, args ...interface{}) (interface{}, error) {
 	stmt, found := tx.dbome.registeredStatements[name]
 	if !found {
 		return nil, errors.New("no statement found")

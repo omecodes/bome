@@ -1,6 +1,9 @@
 package bome
 
-import "database/sql"
+import (
+	"database/sql"
+	"log"
+)
 
 // DoubleMap is a convenience for double mapping persistent store
 type DoubleMap interface {
@@ -24,20 +27,36 @@ type doubleMap struct {
 	*Bome
 }
 
+func (s *doubleMap) BeginTransaction() (DoubleMapTransaction, error) {
+	tx, err := s.Bome.BeginTx()
+	if err != nil {
+		return nil, err
+	}
+
+	return &txDoubleMap{
+		doubleMap: s,
+		tx:        tx,
+	}, nil
+}
+
+func (s *doubleMap) Client() Client {
+	return s.Bome
+}
+
 func (s *doubleMap) Contains(firstKey, secondKey string) (bool, error) {
-	o, err := s.QueryFirst("contains", BoolScanner, firstKey, secondKey)
+	o, err := s.Client().SQLQueryFirst("select 1 from $prefix$ where first_key=? and second_key=?;", BoolScanner, firstKey, secondKey)
 	return o.(bool), err
 }
 
 func (s *doubleMap) Save(m *DoubleMapEntry) error {
-	if s.Exec("insert", m.FirstKey, m.SecondKey, m.Value).Error != nil {
-		return s.Exec("update", m.Value, m.FirstKey, m.SecondKey).Error
+	if s.Client().SQLExec("insert into $prefix$ values (?, ?, ?);", m.FirstKey, m.SecondKey, m.Value) != nil {
+		return s.Client().SQLExec("update $prefix$ set value=? where first_key=? and second_key=?;", m.Value, m.FirstKey, m.SecondKey)
 	}
 	return nil
 }
 
 func (s *doubleMap) Get(firstKey, secondKey string) (string, error) {
-	o, err := s.QueryFirst("select", StringScanner, firstKey, secondKey)
+	o, err := s.Client().SQLQueryFirst("select value from $prefix$ where first_key=? and second_key=?;", StringScanner, firstKey, secondKey)
 	if err != nil {
 		return "", err
 	}
@@ -45,12 +64,16 @@ func (s *doubleMap) Get(firstKey, secondKey string) (string, error) {
 }
 
 func (s *doubleMap) RangeMatchingFirstKey(key string, offset, count int) ([]*MapEntry, error) {
-	c, err := s.Query("range_of_first_key", MapEntryScanner, key, offset, count)
+	c, err := s.Client().SQLQuery("select second_key, value from $prefix$ where first_key=? limit ?, ?;", MapEntryScanner, key, offset, count)
 	if err != nil {
 		return nil, err
 	}
 
-	defer c.Close()
+	defer func() {
+		if err := c.Close(); err != nil {
+			log.Println(err)
+		}
+	}()
 	var entries []*MapEntry
 
 	for c.HasNext() {
@@ -65,12 +88,16 @@ func (s *doubleMap) RangeMatchingFirstKey(key string, offset, count int) ([]*Map
 }
 
 func (s *doubleMap) RangeMatchingSecondKey(key string, offset, count int) ([]*MapEntry, error) {
-	c, err := s.Query("range_of_second_key", MapEntryScanner, key, offset, count)
+	c, err := s.Client().SQLQuery("select first_key, value from $prefix$ where second_key=? limit ?, ?;", MapEntryScanner, key, offset, count)
 	if err != nil {
 		return nil, err
 	}
 
-	defer c.Close()
+	defer func() {
+		if err := c.Close(); err != nil {
+			log.Println(err)
+		}
+	}()
 	var entries []*MapEntry
 
 	for c.HasNext() {
@@ -84,12 +111,16 @@ func (s *doubleMap) RangeMatchingSecondKey(key string, offset, count int) ([]*Ma
 }
 
 func (s *doubleMap) Range(offset, count int) ([]*DoubleMapEntry, error) {
-	c, err := s.Query("range", DoubleMapEntryScanner, offset, count)
+	c, err := s.Client().SQLQuery("select * from $prefix$ limit ?, ?;", DoubleMapEntryScanner, offset, count)
 	if err != nil {
 		return nil, err
 	}
 
-	defer c.Close()
+	defer func() {
+		if err := c.Close(); err != nil {
+			log.Println(err)
+		}
+	}()
 	var entries []*DoubleMapEntry
 
 	for c.HasNext() {
@@ -103,31 +134,31 @@ func (s *doubleMap) Range(offset, count int) ([]*DoubleMapEntry, error) {
 }
 
 func (s *doubleMap) GetForFirst(firstKey string) (Cursor, error) {
-	return s.Query("select_by_first_key", MapEntryScanner, firstKey)
+	return s.Client().SQLQuery("select second_key, value from $prefix$ where first_key=?;", MapEntryScanner, firstKey)
 }
 
 func (s *doubleMap) GetForSecond(secondKey string) (Cursor, error) {
-	return s.Query("select_by_second_key", MapEntryScanner, secondKey)
+	return s.Client().SQLQuery("select first_key, value from $prefix$ where second_key=?;", MapEntryScanner, secondKey)
 }
 
 func (s *doubleMap) GetAll() (Cursor, error) {
-	return s.Query("select_all", DoubleMapEntryScanner)
+	return s.Client().SQLQuery("select * from $prefix$;", DoubleMapEntryScanner)
 }
 
 func (s *doubleMap) Delete(firstKey, secondKey string) error {
-	return s.Exec("delete", firstKey, secondKey).Error
+	return s.Client().SQLExec("delete from $prefix$ where first_key=? and second_key=?;", firstKey, secondKey)
 }
 
 func (s *doubleMap) DeleteAllMatchingFirstKey(firstKey string) error {
-	return s.Exec("delete_by_first_key", firstKey).Error
+	return s.Client().SQLExec("delete from $prefix$ where first_key=?;", firstKey)
 }
 
 func (s *doubleMap) DeleteAllMatchingSecondKey(secondKey string) error {
-	return s.Exec("delete_by_second_key", secondKey).Error
+	return s.Client().SQLExec("delete from $prefix$ where second_key=?;", secondKey)
 }
 
 func (s *doubleMap) Clear() error {
-	return s.Exec("clear").Error
+	return s.Client().SQLExec("delete from $prefix$;")
 }
 
 func (s *doubleMap) Close() error {
@@ -150,21 +181,9 @@ func NewDoubleMap(db *sql.DB, dialect string, tableName string) (DoubleMap, erro
 	}
 
 	d.SetTablePrefix(tableName).
-		AddTableDefinition("create table if not exists $prefix$ (first_key varchar(255) not null, second_key varchar(255) not null, value longtext not null);").
-		AddStatement("contains", "select 1 from $prefix$ where first_key=? and second_key=?;").
-		AddStatement("insert", "insert into $prefix$ values (?, ?, ?);").
-		AddStatement("update", "update $prefix$ set value=? where first_key=? and second_key=?;").
-		AddStatement("select", "select value from $prefix$ where first_key=? and second_key=?;").
-		AddStatement("select_by_first_key", "select second_key, value from $prefix$ where first_key=?;").
-		AddStatement("select_by_second_key", "select first_key, value from $prefix$ where second_key=?;").
-		AddStatement("select_all", "select * from $prefix$;").
-		AddStatement("range_of_first_key", "select second_key, value from $prefix$ where first_key=? limit ?, ?;").
-		AddStatement("range_of_second_key", "select first_key, value from $prefix$ where second_key=? limit ?, ?;").
-		AddStatement("range", "select * from $prefix$ limit ?, ?;").
-		AddStatement("delete", "delete from $prefix$ where first_key=? and second_key=?;").
-		AddStatement("delete_by_first_key", "delete from $prefix$ where first_key=?;").
-		AddStatement("delete_by_second_key", "delete from $prefix$ where second_key=?;").
-		AddStatement("clear", "delete from $prefix$;")
+		AddTableDefinition(
+			"create table if not exists $prefix$ (first_key varchar(255) not null, second_key varchar(255) not null, value longtext not null);",
+		)
 
 	err = d.Init()
 	if err != nil {

@@ -1,6 +1,9 @@
 package bome
 
-import "database/sql"
+import (
+	"database/sql"
+	"log"
+)
 
 // Map is a convenience for persistent string to string dict
 type Map interface {
@@ -19,15 +22,15 @@ type dict struct {
 }
 
 func (d *dict) Save(entry *MapEntry) error {
-	err := d.Exec("insert", entry.Key, entry.Value).Error
+	err := d.RawExec("insert into $prefix$ values (?, ?);", entry.Key, entry.Value).Error
 	if err != nil {
-		err = d.Exec("update", entry.Value, entry.Key).Error
+		err = d.RawExec("update $prefix$ set value=? where name=?;", entry.Value, entry.Key).Error
 	}
 	return err
 }
 
 func (d *dict) Get(key string) (string, error) {
-	o, err := d.QueryFirst("select", StringScanner, key)
+	o, err := d.RawQueryFirst("select value from $prefix$ where name=?;", StringScanner, key)
 	if err != nil {
 		return "", err
 	}
@@ -35,7 +38,7 @@ func (d *dict) Get(key string) (string, error) {
 }
 
 func (d *dict) Contains(key string) (bool, error) {
-	res, err := d.QueryFirst("contains", BoolScanner, key)
+	res, err := d.RawQueryFirst("select 1 from $prefix$ where name=?;", BoolScanner, key)
 	if err != nil {
 		if IsNotFound(err) {
 			return false, nil
@@ -46,11 +49,15 @@ func (d *dict) Contains(key string) (bool, error) {
 }
 
 func (d *dict) Range(offset, count int) ([]*MapEntry, error) {
-	c, err := d.Query("range", MapEntryScanner, offset, count)
+	c, err := d.RawQuery("select * from $prefix$ limit ?, ?;", MapEntryScanner, offset, count)
 	if err != nil {
 		return nil, err
 	}
-	defer c.Close()
+	defer func() {
+		if err := c.Close(); err != nil {
+			log.Println(err)
+		}
+	}()
 
 	var entries []*MapEntry
 	for c.HasNext() {
@@ -64,15 +71,15 @@ func (d *dict) Range(offset, count int) ([]*MapEntry, error) {
 }
 
 func (d *dict) Delete(key string) error {
-	return d.Exec("delete", key).Error
+	return d.RawExec("delete from $prefix$ where name=?;", key).Error
 }
 
 func (d *dict) List() (Cursor, error) {
-	return d.Query("select_all", MapEntryScanner)
+	return d.RawQuery("select * from $prefix$;", MapEntryScanner)
 }
 
 func (d *dict) Clear() error {
-	return d.Exec("clear").Error
+	return d.RawExec("delete from $prefix$;").Error
 }
 
 func (d *dict) Close() error {
@@ -97,14 +104,6 @@ func NewMap(db *sql.DB, dialect string, tableName string) (Map, error) {
 	}
 
 	d.SetTablePrefix(tableName).
-		AddTableDefinition("create table if not exists $prefix$ (name varchar(255) not null primary key, value longtext not null);").
-		AddStatement("insert", "insert into $prefix$ values (?, ?);").
-		AddStatement("update", "update $prefix$ set value=? where name=?;").
-		AddStatement("select", "select value from $prefix$ where name=?;").
-		AddStatement("select_all", "select * from $prefix$;").
-		AddStatement("range", "select * from $prefix$ limit ?, ?;").
-		AddStatement("contains", "select 1 from $prefix$ where name=?;").
-		AddStatement("delete", "delete from $prefix$ where name=?;").
-		AddStatement("clear", "delete from $prefix$;")
+		AddTableDefinition("create table if not exists $prefix$ (name varchar(255) not null primary key, value longtext not null);")
 	return d, d.Init()
 }
