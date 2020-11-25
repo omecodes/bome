@@ -10,14 +10,18 @@ type txDoubleMap struct {
 	tx *TX
 }
 
-func (s *txDoubleMap) Client() Client {
-	return s.tx
+func (tx *txDoubleMap) Client() Client {
+	return tx.tx
 }
 
-func (s *txDoubleMap) Commit() error {
-	return s.tx.Commit()
+func (tx *txDoubleMap) Commit() error {
+	return tx.tx.Commit()
 }
 
-func (s *txDoubleMap) Rollback() error {
-	return s.tx.Rollback()
+func (tx *txDoubleMap) Rollback() error {
+	return tx.tx.Rollback()
+}
+
+func (tx *txDoubleMap) TX() *TX {
+	return tx.tx
 }

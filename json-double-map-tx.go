@@ -1,24 +1,28 @@
 package bome
 
-// JSONDoubleMapTransaction is a convenience for double mapping persistent store
+// JSONDoubleMapTransaction
 type JSONDoubleMapTransaction interface {
 	JSONDoubleMap
 	transaction
 }
 
 type txJsonDoubleMap struct {
-	JSONDoubleMap
+	*jsonDoubleMap
 	tx *TX
 }
 
-func (s *txJsonDoubleMap) Client() Client {
-	return s.tx
+func (tx *txJsonDoubleMap) Client() Client {
+	return tx.tx
 }
 
-func (s *txJsonDoubleMap) Commit() error {
-	return s.tx.Commit()
+func (tx *txJsonDoubleMap) Commit() error {
+	return tx.tx.Commit()
 }
 
-func (s *txJsonDoubleMap) Rollback() error {
-	return s.tx.Rollback()
+func (tx *txJsonDoubleMap) Rollback() error {
+	return tx.tx.Rollback()
+}
+
+func (tx *txJsonDoubleMap) TX() *TX {
+	return tx.tx
 }

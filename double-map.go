@@ -39,6 +39,13 @@ func (s *doubleMap) BeginTransaction() (DoubleMapTransaction, error) {
 	}, nil
 }
 
+func (s *doubleMap) ContinueTransaction(tx *TX) DoubleMapTransaction {
+	return &txDoubleMap{
+		doubleMap: s,
+		tx:        tx,
+	}
+}
+
 func (s *doubleMap) Client() Client {
 	return s.Bome
 }

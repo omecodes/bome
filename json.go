@@ -27,6 +27,18 @@ type jsonValueHolder struct {
 	*Bome
 }
 
+func (s *jsonValueHolder) BeginTransaction() (JsonValueHolderTransaction, error) {
+	tx, err := s.Bome.BeginTx()
+	if err != nil {
+		return nil, err
+	}
+
+	return &txJsonValueHolder{
+		JsonValueHolder: s,
+		tx:              tx,
+	}, nil
+}
+
 func (s *jsonValueHolder) Client() Client {
 	return s.Bome
 }
@@ -83,16 +95,4 @@ func (s *jsonValueHolder) RangeOf(condition BoolExpr, scannerName string, offset
 	)
 	rawQuery = strings.Replace(rawQuery, "__value__", s.field, -1)
 	return s.Client().SQLQuery(rawQuery, scannerName, offset, count)
-}
-
-func (s *jsonValueHolder) BeginTransaction() (JsonValueHolderTransaction, error) {
-	tx, err := s.Bome.BeginTx()
-	if err != nil {
-		return nil, err
-	}
-
-	return &txJsonValueHolder{
-		JsonValueHolder: s,
-		tx:              tx,
-	}, nil
 }

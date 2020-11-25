@@ -28,9 +28,16 @@ func (s *jsonDoubleMap) BeginTransaction() (JSONDoubleMapTransaction, error) {
 	}
 
 	return &txJsonDoubleMap{
-		JSONDoubleMap: s,
+		jsonDoubleMap: s,
 		tx:            tx,
 	}, nil
+}
+
+func (s *jsonDoubleMap) ContinueTransaction(tx *TX) JSONDoubleMapTransaction {
+	return &txJsonDoubleMap{
+		jsonDoubleMap: s,
+		tx:            tx,
+	}
 }
 
 func (s *jsonDoubleMap) EditAt(firstKey, secondKey string, path string, value string) error {

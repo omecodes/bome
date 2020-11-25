@@ -22,19 +22,40 @@ type jsonMap struct {
 	tableName string
 }
 
+func (m *jsonMap) BeginTransaction() (JSONMapTransaction, error) {
+	tx, err := m.BeginTx()
+	if err != nil {
+		return nil, err
+	}
+	return &txJsonMap{
+		jsonMap: m,
+		tx:      tx,
+	}, nil
+}
+
+func (m *jsonMap) ContinueTransaction(tx *TX) JSONMapTransaction {
+	return &txJsonMap{
+		jsonMap: m,
+		tx:      tx,
+	}
+}
+
+func (m *jsonMap) Client() Client {
+	return m.Bome
+}
+
 func (m *jsonMap) EditAt(key string, path string, ex Expression) error {
 	rawQuery := fmt.Sprintf("update %s set value=json_set(value, '%s', %s) where name=?;",
 		m.tableName,
 		normalizedJsonPath(path),
-		ex.eval(),
-	)
+		ex.eval())
 	rawQuery = strings.Replace(rawQuery, "__value__", "value", -1)
-	return m.RawExec(rawQuery, key).Error
+	return m.Client().SQLExec(rawQuery, key)
 }
 
 func (m *jsonMap) ExtractAt(key string, path string) (string, error) {
 	rawQuery := fmt.Sprintf("select json_unquote(json_extract(value, '%s')) from %s where name=?;", path, m.tableName)
-	o, err := m.RawQueryFirst(rawQuery, StringScanner, key)
+	o, err := m.Client().SQLQueryFirst(rawQuery, StringScanner, key)
 	if err != nil {
 		return "", err
 	}
@@ -67,13 +88,6 @@ func NewJSONMap(db *sql.DB, dialect string, tableName string) (JSONMap, error) {
 	d.dict = &dict{Bome: b}
 
 	d.SetTablePrefix(d.tableName).
-		AddTableDefinition("create table if not exists $prefix$ (name varchar(255) not null primary key, value json not null);").
-		AddStatement("insert", "insert into $prefix$ values (?, ?);").
-		AddStatement("update", "update $prefix$ set value=? where name=?;").
-		AddStatement("select", "select value from $prefix$ where name=?;").
-		AddStatement("select_all", "select * from $prefix$;").
-		AddStatement("contains", "select 1 from $prefix$ where name=?;").
-		AddStatement("delete", "delete from $prefix$ where name=?;").
-		AddStatement("clear", "delete from $prefix$;")
+		AddTableDefinition("create table if not exists $prefix$ (name varchar(255) not null primary key, value json not null);")
 	return d, d.Init()
 }

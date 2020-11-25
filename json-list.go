@@ -12,23 +12,45 @@ type JSONList interface {
 	ExtractAt(index int64, path string) (string, error)
 }
 
-type jsonListDB struct {
+type jsonList struct {
 	*listDB
 	JsonValueHolder
 	*Bome
 	tableName string
 }
 
-func (l *jsonListDB) EditAt(index int64, path string, sqlValue string) error {
-	rawQuery := fmt.Sprintf(
-		"update %s set value=json_set(value, '%s', %s) where ind=?;", l.tableName, path, sqlValue)
-	return l.RawExec(rawQuery, index).Error
+func (l *jsonList) BeginTransaction() (JsonListTransaction, error) {
+	tx, err := l.BeginTx()
+	if err != nil {
+		return nil, err
+	}
+	return &txJsonList{
+		jsonList: l,
+		tx:       tx,
+	}, nil
 }
 
-func (l *jsonListDB) ExtractAt(index int64, path string) (string, error) {
+func (l *jsonList) ContinueTransaction(tx *TX) JsonListTransaction {
+	return &txJsonList{
+		jsonList: l,
+		tx:       tx,
+	}
+}
+
+func (l *jsonList) Client() Client {
+	return l.Bome
+}
+
+func (l *jsonList) EditAt(index int64, path string, sqlValue string) error {
+	rawQuery := fmt.Sprintf(
+		"update %s set value=json_set(value, '%s', %s) where ind=?;", l.tableName, path, sqlValue)
+	return l.Client().SQLExec(rawQuery, index)
+}
+
+func (l *jsonList) ExtractAt(index int64, path string) (string, error) {
 	rawQuery := fmt.Sprintf(
 		"select json_unquote(json_extract(value, '%s')) from %s where ind=?;", path, l.tableName)
-	o, err := l.RawQueryFirst(rawQuery, StringScanner, index)
+	o, err := l.Client().SQLQueryFirst(rawQuery, StringScanner, index)
 	if err != nil {
 		return "", err
 	}
@@ -38,7 +60,7 @@ func (l *jsonListDB) ExtractAt(index int64, path string) (string, error) {
 // NewJSONList creates a single table based list
 // The table has two columns: an integer index and a json-string value
 func NewJSONList(db *sql.DB, dialect string, tableName string) (JSONList, error) {
-	d := new(jsonListDB)
+	d := new(jsonList)
 	d.tableName = escaped(tableName)
 	d.listDB = new(listDB)
 
@@ -63,15 +85,6 @@ func NewJSONList(db *sql.DB, dialect string, tableName string) (JSONList, error)
 	}
 
 	d.SetTablePrefix(tableName).
-		AddTableDefinition("create table if not exists $prefix$ (ind integer not null primary key $auto_increment$, value json not null);").
-		AddStatement("insert", "insert into $prefix$ values (?, ?);").
-		AddStatement("append", "insert into $prefix$ (value) values (?);").
-		AddStatement("select", "select * from $prefix$ where ind=?;").
-		AddStatement("select_min_index", "select min(ind) from $prefix$;").
-		AddStatement("select_max_index", "select max(ind) from $prefix$;").
-		AddStatement("select_count", "select count(ind) from $prefix$;").
-		AddStatement("select_from", "select * from $prefix$ where ind>? order by ind;").
-		AddStatement("delete_by_seq", "delete from $prefix$ where ind=?;").
-		AddStatement("clear", "delete from $prefix$;")
+		AddTableDefinition("create table if not exists $prefix$ (ind integer not null primary key $auto_increment$, value json not null);")
 	return d, d.Init()
 }

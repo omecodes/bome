@@ -5,6 +5,12 @@ import (
 	"errors"
 )
 
+type transaction interface {
+	Commit() error
+	Rollback() error
+	TX() *TX
+}
+
 // TX is a transaction token
 type TX struct {
 	dbome *Bome

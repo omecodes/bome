@@ -26,16 +26,38 @@ type listDB struct {
 	*Bome
 }
 
+func (l *listDB) BeginTransaction() (ListTransaction, error) {
+	tx, err := l.BeginTx()
+	if err != nil {
+		return nil, err
+	}
+	return &txList{
+		listDB: l,
+		tx:     tx,
+	}, nil
+}
+
+func (l *listDB) ContinueTransaction(tx *TX) ListTransaction {
+	return &txList{
+		listDB: l,
+		tx:     tx,
+	}
+}
+
+func (l *listDB) Client() Client {
+	return l.Bome
+}
+
 func (l *listDB) Save(entry *ListEntry) error {
-	return l.RawExec("insert into $prefix$ values (?, ?);", entry.Index, entry.Value).Error
+	return l.Client().SQLExec("insert into $prefix$ values (?, ?);", entry.Index, entry.Value)
 }
 
 func (l *listDB) Append(entry *ListEntry) error {
-	return l.RawExec("insert into $prefix$ (value) values (?);", entry.Value).Error
+	return l.Client().SQLExec("insert into $prefix$ (value) values (?);", entry.Value)
 }
 
 func (l *listDB) GetAt(index int64) (*ListEntry, error) {
-	o, err := l.RawQueryFirst("select * from $prefix$ where ind=?;", ListEntryScanner, index)
+	o, err := l.Client().SQLQueryFirst("select * from $prefix$ where ind=?;", ListEntryScanner, index)
 	if err != nil {
 		return nil, err
 	}
@@ -43,7 +65,7 @@ func (l *listDB) GetAt(index int64) (*ListEntry, error) {
 }
 
 func (l *listDB) MinIndex() (int64, error) {
-	res, err := l.RawQueryFirst("select min(ind) from $prefix$;", IntScanner)
+	res, err := l.Client().SQLQueryFirst("select min(ind) from $prefix$;", IntScanner)
 	if err != nil {
 		return 0, err
 	}
@@ -51,7 +73,7 @@ func (l *listDB) MinIndex() (int64, error) {
 }
 
 func (l *listDB) MaxIndex() (int64, error) {
-	res, err := l.RawQueryFirst("select max(ind) from $prefix$;", IntScanner)
+	res, err := l.Client().SQLQueryFirst("select max(ind) from $prefix$;", IntScanner)
 	if err != nil {
 		return 0, err
 	}
@@ -59,7 +81,7 @@ func (l *listDB) MaxIndex() (int64, error) {
 }
 
 func (l *listDB) Count() (int64, error) {
-	res, err := l.RawQueryFirst("select count(ind) from $prefix$;", IntScanner)
+	res, err := l.Client().SQLQueryFirst("select count(ind) from $prefix$;", IntScanner)
 	if err != nil {
 		return 0, err
 	}
@@ -67,7 +89,7 @@ func (l *listDB) Count() (int64, error) {
 }
 
 func (l *listDB) GetNextFromSeq(index int64) (*ListEntry, error) {
-	o, err := l.RawQueryFirst("select * from $prefix$ where ind>? order by ind;", ListEntryScanner, index)
+	o, err := l.Client().SQLQueryFirst("select * from $prefix$ where ind>? order by ind;", ListEntryScanner, index)
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +97,7 @@ func (l *listDB) GetNextFromSeq(index int64) (*ListEntry, error) {
 }
 
 func (l *listDB) RangeFromIndex(index int64, offset, count int) ([]*ListEntry, error) {
-	c, err := l.RawQuery("select * from $prefix$ where ind>? order by ind limit ?, ?;", ListEntryScanner, index, offset, count)
+	c, err := l.Client().SQLQuery("select * from $prefix$ where ind>? order by ind limit ?, ?;", ListEntryScanner, index, offset, count)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +119,7 @@ func (l *listDB) RangeFromIndex(index int64, offset, count int) ([]*ListEntry, e
 }
 
 func (l *listDB) Range(offset, count int) ([]*ListEntry, error) {
-	c, err := l.RawQuery("select * from $prefix$ order by ind limit ?, ?;", ListEntryScanner, offset, count)
+	c, err := l.Client().SQLQuery("select * from $prefix$ order by ind limit ?, ?;", ListEntryScanner, offset, count)
 	if err != nil {
 		return nil, err
 	}
@@ -120,15 +142,15 @@ func (l *listDB) Range(offset, count int) ([]*ListEntry, error) {
 }
 
 func (l *listDB) GetAllFromSeq(index int64) (Cursor, error) {
-	return l.RawQuery("select * from $prefix$ where ind>? order by ind;", ListEntryScanner, index)
+	return l.Client().SQLQuery("select * from $prefix$ where ind>? order by ind;", ListEntryScanner, index)
 }
 
 func (l *listDB) Delete(index int64) error {
-	return l.RawExec("delete from $prefix$ where ind=?;", index).Error
+	return l.Client().SQLExec("delete from $prefix$ where ind=?;", index)
 }
 
 func (l *listDB) Clear() error {
-	return l.RawExec("delete from $prefix$;").Error
+	return l.Client().SQLExec("delete from $prefix$;")
 }
 
 func (l *listDB) Close() error {

@@ -21,16 +21,39 @@ type dict struct {
 	*Bome
 }
 
-func (d *dict) Save(entry *MapEntry) error {
-	err := d.RawExec("insert into $prefix$ values (?, ?);", entry.Key, entry.Value).Error
+func (d *dict) BeginTransaction() (MapTransaction, error) {
+	tx, err := d.BeginTx()
 	if err != nil {
-		err = d.RawExec("update $prefix$ set value=? where name=?;", entry.Value, entry.Key).Error
+		return nil, err
+	}
+
+	return &txDict{
+		dict: d,
+		tx:   tx,
+	}, nil
+}
+
+func (d *dict) ContinueTransaction(tx *TX) MapTransaction {
+	return &txDict{
+		dict: d,
+		tx:   tx,
+	}
+}
+
+func (d *dict) Client() Client {
+	return d.Bome
+}
+
+func (d *dict) Save(entry *MapEntry) error {
+	err := d.Client().SQLExec("insert into $prefix$ values (?, ?);", entry.Key, entry.Value)
+	if err != nil {
+		err = d.Client().SQLExec("update $prefix$ set value=? where name=?;", entry.Value, entry.Key)
 	}
 	return err
 }
 
 func (d *dict) Get(key string) (string, error) {
-	o, err := d.RawQueryFirst("select value from $prefix$ where name=?;", StringScanner, key)
+	o, err := d.Client().SQLQueryFirst("select value from $prefix$ where name=?;", StringScanner, key)
 	if err != nil {
 		return "", err
 	}
@@ -38,7 +61,7 @@ func (d *dict) Get(key string) (string, error) {
 }
 
 func (d *dict) Contains(key string) (bool, error) {
-	res, err := d.RawQueryFirst("select 1 from $prefix$ where name=?;", BoolScanner, key)
+	res, err := d.Client().SQLQueryFirst("select 1 from $prefix$ where name=?;", BoolScanner, key)
 	if err != nil {
 		if IsNotFound(err) {
 			return false, nil
@@ -49,7 +72,7 @@ func (d *dict) Contains(key string) (bool, error) {
 }
 
 func (d *dict) Range(offset, count int) ([]*MapEntry, error) {
-	c, err := d.RawQuery("select * from $prefix$ limit ?, ?;", MapEntryScanner, offset, count)
+	c, err := d.Client().SQLQuery("select * from $prefix$ limit ?, ?;", MapEntryScanner, offset, count)
 	if err != nil {
 		return nil, err
 	}
@@ -71,15 +94,15 @@ func (d *dict) Range(offset, count int) ([]*MapEntry, error) {
 }
 
 func (d *dict) Delete(key string) error {
-	return d.RawExec("delete from $prefix$ where name=?;", key).Error
+	return d.Client().SQLExec("delete from $prefix$ where name=?;", key)
 }
 
 func (d *dict) List() (Cursor, error) {
-	return d.RawQuery("select * from $prefix$;", MapEntryScanner)
+	return d.Client().SQLQuery("select * from $prefix$;", MapEntryScanner)
 }
 
 func (d *dict) Clear() error {
-	return d.RawExec("delete from $prefix$;").Error
+	return d.Client().SQLExec("delete from $prefix$;")
 }
 
 func (d *dict) Close() error {

@@ -21,3 +21,7 @@ func (s *txJsonValueHolder) Commit() error {
 func (s *txJsonValueHolder) Rollback() error {
 	return s.tx.Rollback()
 }
+
+func (s *txJsonValueHolder) TX() *TX {
+	return s.tx
+}
