@@ -5,48 +5,44 @@ import (
 	"strings"
 )
 
-type JsonValueHolder interface {
-	EditAll(path string, ex Expression) error
-	EditAllMatching(path string, ex Expression, condition BoolExpr) error
-	ExtractAll(path string, condition BoolExpr, scannerName string) (Cursor, error)
-	Search(condition BoolExpr, scannerName string) (Cursor, error)
-	RangeOf(condition BoolExpr, scannerName string, offset, count int) (Cursor, error)
-}
-
-func NewJsonValueHolder(table string, field string, db *Bome) JsonValueHolder {
-	return &jsonValueHolder{
+func NewJsonValueHolder(field string, db *Bome) *JsonValueHolder {
+	return &JsonValueHolder{
 		field: field,
-		table: table,
 		Bome:  db,
 	}
 }
 
-type jsonValueHolder struct {
+type JsonValueHolder struct {
 	field string
-	table string
 	*Bome
 }
 
-func (s *jsonValueHolder) BeginTransaction() (JsonValueHolderTransaction, error) {
+func (s *JsonValueHolder) BeginTransaction() (*JsonValueHolderTx, error) {
 	tx, err := s.Bome.BeginTx()
 	if err != nil {
 		return nil, err
 	}
 
-	return &txJsonValueHolder{
-		JsonValueHolder: s,
-		tx:              tx,
+	return &JsonValueHolderTx{
+		field: s.field,
+		tx:    tx,
 	}, nil
 }
 
-func (s *jsonValueHolder) Client() Client {
+func (s *JsonValueHolder) ContinueTransaction(tx *TX) *JsonValueHolderTx {
+	return &JsonValueHolderTx{
+		field: s.field,
+		tx:    tx,
+	}
+}
+
+func (s *JsonValueHolder) Client() Client {
 	return s.Bome
 }
 
-func (s *jsonValueHolder) EditAll(path string, ex Expression) error {
+func (s *JsonValueHolder) EditAll(path string, ex Expression) error {
 	rawQuery := fmt.Sprintf(
-		"update %s set __value__=json_set(%s, '%s', %s);",
-		s.table,
+		"update $table$ set __value__=json_set(%s, '%s', %s);",
 		s.field,
 		normalizedJsonPath(path),
 		ex.eval(),
@@ -55,10 +51,9 @@ func (s *jsonValueHolder) EditAll(path string, ex Expression) error {
 	return s.Client().SQLExec(rawQuery)
 }
 
-func (s *jsonValueHolder) EditAllMatching(path string, ex Expression, condition BoolExpr) error {
+func (s *JsonValueHolder) EditAllMatching(path string, ex Expression, condition BoolExpr) error {
 	rawQuery := fmt.Sprintf(
-		"update %s set __value__=json_insert(%s, '%s', %s) where %s",
-		s.table,
+		"update $table$ set __value__=json_insert(%s, '%s', %s) where %s",
 		s.field,
 		normalizedJsonPath(path),
 		ex.eval(),
@@ -68,29 +63,26 @@ func (s *jsonValueHolder) EditAllMatching(path string, ex Expression, condition 
 	return s.Client().SQLExec(rawQuery)
 }
 
-func (s *jsonValueHolder) ExtractAll(path string, condition BoolExpr, scannerName string) (Cursor, error) {
-	rawQuery := fmt.Sprintf("select json_unquote(json_extract(%s, '%s')) from %s where %s;",
+func (s *JsonValueHolder) ExtractAll(path string, condition BoolExpr, scannerName string) (Cursor, error) {
+	rawQuery := fmt.Sprintf("select json_unquote(json_extract(%s, '%s')) from $table$ where %s;",
 		s.field,
 		path,
-		s.table,
 		condition.sql(),
 	)
 	rawQuery = strings.Replace(rawQuery, "__value__", s.field, -1)
 	return s.Client().SQLQuery(rawQuery, scannerName)
 }
 
-func (s *jsonValueHolder) Search(condition BoolExpr, scannerName string) (Cursor, error) {
-	rawQuery := fmt.Sprintf("select * from %s where %s;",
-		s.table,
+func (s *JsonValueHolder) Search(condition BoolExpr, scannerName string) (Cursor, error) {
+	rawQuery := fmt.Sprintf("select * from $table$ where %s;",
 		condition.sql(),
 	)
 	rawQuery = strings.Replace(rawQuery, "__value__", s.field, -1)
 	return s.Client().SQLQuery(rawQuery, scannerName)
 }
 
-func (s *jsonValueHolder) RangeOf(condition BoolExpr, scannerName string, offset, count int) (Cursor, error) {
-	rawQuery := fmt.Sprintf("select * from %s where %s limit ?, ?;",
-		s.table,
+func (s *JsonValueHolder) RangeOf(condition BoolExpr, scannerName string, offset, count int) (Cursor, error) {
+	rawQuery := fmt.Sprintf("select * from $table$ where %s limit ?, ?;",
 		condition.sql(),
 	)
 	rawQuery = strings.Replace(rawQuery, "__value__", s.field, -1)

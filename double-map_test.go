@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	dbDoubleMap DoubleMap
+	dbDoubleMap *DoubleMap
 
 	doubleMapEntry1  = DoubleMapEntry{FirstKey: "fk1", SecondKey: "sk1", Value: "fk1sk1"}
 	doubleMapEntry11 = DoubleMapEntry{FirstKey: "fk1", SecondKey: "sk2", Value: "fk1sk2"}
@@ -51,8 +51,6 @@ func initDoubleDbMap(t *testing.T) {
 		So(dbDoubleMap, ShouldNotBeNil)
 	}
 }
-
-// 172.17.0.1
 
 func TestDoubleMap_Save(t *testing.T) {
 	Convey("Save double map entries", t, func() {

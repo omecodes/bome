@@ -5,99 +5,80 @@ import (
 	"log"
 )
 
-// List is a convenience for persistence list
-type List interface {
-	Save(*ListEntry) error
-	Append(*ListEntry) error
-	GetAt(index int64) (*ListEntry, error)
-	GetNextFromSeq(index int64) (*ListEntry, error)
-	GetAllFromSeq(index int64) (Cursor, error)
-	RangeFromIndex(index int64, offset, count int) ([]*ListEntry, error)
-	Range(offset, count int) ([]*ListEntry, error)
-	Delete(index int64) error
-	MinIndex() (int64, error)
-	MaxIndex() (int64, error)
-	Count() (int64, error)
-	Clear() error
-	Close() error
-}
-
-type listDB struct {
+type List struct {
 	*Bome
 }
 
-func (l *listDB) BeginTransaction() (ListTransaction, error) {
+func (l *List) BeginTransaction() (*ListTx, error) {
 	tx, err := l.BeginTx()
 	if err != nil {
 		return nil, err
 	}
-	return &txList{
-		listDB: l,
-		tx:     tx,
+	return &ListTx{
+		tx: tx,
 	}, nil
 }
 
-func (l *listDB) ContinueTransaction(tx *TX) ListTransaction {
-	return &txList{
-		listDB: l,
-		tx:     tx,
+func (l *List) ContinueTransaction(tx *TX) *ListTx {
+	return &ListTx{
+		tx: tx,
 	}
 }
 
-func (l *listDB) Client() Client {
+func (l *List) Client() Client {
 	return l.Bome
 }
 
-func (l *listDB) Save(entry *ListEntry) error {
-	return l.Client().SQLExec("insert into $prefix$ values (?, ?);", entry.Index, entry.Value)
+func (l *List) Save(entry *ListEntry) error {
+	return l.Client().SQLExec("insert into $table$ values (?, ?);", entry.Index, entry.Value)
 }
 
-func (l *listDB) Append(entry *ListEntry) error {
-	return l.Client().SQLExec("insert into $prefix$ (value) values (?);", entry.Value)
+func (l *List) Append(entry *ListEntry) error {
+	return l.Client().SQLExec("insert into $table$ (value) values (?);", entry.Value)
 }
 
-func (l *listDB) GetAt(index int64) (*ListEntry, error) {
-	o, err := l.Client().SQLQueryFirst("select * from $prefix$ where ind=?;", ListEntryScanner, index)
+func (l *List) GetAt(index int64) (*ListEntry, error) {
+	o, err := l.Client().SQLQueryFirst("select * from $table$ where ind=?;", ListEntryScanner, index)
 	if err != nil {
 		return nil, err
 	}
 	return o.(*ListEntry), nil
 }
 
-func (l *listDB) MinIndex() (int64, error) {
-	res, err := l.Client().SQLQueryFirst("select min(ind) from $prefix$;", IntScanner)
+func (l *List) MinIndex() (int64, error) {
+	res, err := l.Client().SQLQueryFirst("select min(ind) from $table$;", IntScanner)
 	if err != nil {
 		return 0, err
 	}
 	return res.(int64), nil
 }
 
-func (l *listDB) MaxIndex() (int64, error) {
-	res, err := l.Client().SQLQueryFirst("select max(ind) from $prefix$;", IntScanner)
+func (l *List) MaxIndex() (int64, error) {
+	res, err := l.Client().SQLQueryFirst("select max(ind) from $table$;", IntScanner)
 	if err != nil {
 		return 0, err
 	}
 	return res.(int64), nil
 }
 
-func (l *listDB) Count() (int64, error) {
-	res, err := l.Client().SQLQueryFirst("select count(ind) from $prefix$;", IntScanner)
+func (l *List) Count() (int64, error) {
+	res, err := l.Client().SQLQueryFirst("select count(ind) from $table$;", IntScanner)
 	if err != nil {
 		return 0, err
 	}
 	return res.(int64), nil
 }
 
-func (l *listDB) GetNextFromSeq(index int64) (*ListEntry, error) {
-	o, err := l.Client().SQLQueryFirst("select * from $prefix$ where ind>? order by ind;", ListEntryScanner, index)
+func (l *List) GetNextFromSeq(index int64) (*ListEntry, error) {
+	o, err := l.Client().SQLQueryFirst("select * from $table$ where ind>? order by ind;", ListEntryScanner, index)
 	if err != nil {
 		return nil, err
 	}
 	return o.(*ListEntry), nil
 }
 
-func (l *listDB) RangeFromIndex(index int64, offset, count int) ([]*ListEntry, error) {
-	c, err := l.Client().SQLQuery("select * from $prefix$ where ind>? order by ind limit ?, ?;", ListEntryScanner, index, offset, count)
+func (l *List) RangeFromIndex(index int64, offset, count int) ([]*ListEntry, error) {
+	c, err := l.Client().SQLQuery("select * from $table$ where ind>? order by ind limit ?, ?;", ListEntryScanner, index, offset, count)
 	if err != nil {
 		return nil, err
 	}
@@ -118,8 +99,8 @@ func (l *listDB) RangeFromIndex(index int64, offset, count int) ([]*ListEntry, e
 	return entries, nil
 }
 
-func (l *listDB) Range(offset, count int) ([]*ListEntry, error) {
-	c, err := l.Client().SQLQuery("select * from $prefix$ order by ind limit ?, ?;", ListEntryScanner, offset, count)
+func (l *List) Range(offset, count int) ([]*ListEntry, error) {
+	c, err := l.Client().SQLQuery("select * from $table$ order by ind limit ?, ?;", ListEntryScanner, offset, count)
 	if err != nil {
 		return nil, err
 	}
@@ -141,25 +122,25 @@ func (l *listDB) Range(offset, count int) ([]*ListEntry, error) {
 	return entries, nil
 }
 
-func (l *listDB) GetAllFromSeq(index int64) (Cursor, error) {
-	return l.Client().SQLQuery("select * from $prefix$ where ind>? order by ind;", ListEntryScanner, index)
+func (l *List) GetAllFromSeq(index int64) (Cursor, error) {
+	return l.Client().SQLQuery("select * from $table$ where ind>? order by ind;", ListEntryScanner, index)
 }
 
-func (l *listDB) Delete(index int64) error {
-	return l.Client().SQLExec("delete from $prefix$ where ind=?;", index)
+func (l *List) Delete(index int64) error {
+	return l.Client().SQLExec("delete from $table$ where ind=?;", index)
 }
 
-func (l *listDB) Clear() error {
-	return l.Client().SQLExec("delete from $prefix$;")
+func (l *List) Clear() error {
+	return l.Client().SQLExec("delete from $table$;")
 }
 
-func (l *listDB) Close() error {
+func (l *List) Close() error {
 	return l.Bome.sqlDb.Close()
 }
 
 // NewList creates MySQL wrapped list
-func NewList(db *sql.DB, dialect string, tableName string) (List, error) {
-	d := new(listDB)
+func NewList(db *sql.DB, dialect string, tableName string) (*List, error) {
+	d := new(List)
 	var err error
 
 	if dialect == SQLite3 {
@@ -174,9 +155,9 @@ func NewList(db *sql.DB, dialect string, tableName string) (List, error) {
 		return nil, err
 	}
 
-	d.SetTablePrefix(tableName).
+	d.SetTableName(escaped(tableName)).
 		AddTableDefinition(
-			"create table if not exists $prefix$ (ind integer not null primary key $auto_increment$, value longtext not null);")
+			"create table if not exists $table$ (ind integer not null primary key $auto_increment$, value longtext not null);")
 	err = d.init()
 	return d, err
 }

@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	dbJsonList JSONList
+	dbJsonList *JSONList
 )
 
 func init() {

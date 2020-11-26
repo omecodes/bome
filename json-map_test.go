@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	dbJsonMap JSONMap
+	dbJsonMap *JSONMap
 
 	couple1 = MapEntry{
 		Key:   "zebou",

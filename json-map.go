@@ -3,58 +3,43 @@ package bome
 import (
 	"database/sql"
 	"fmt"
-	"strings"
 )
 
-// JSONMap is a convenience for persistent string to string dict
-type JSONMap interface {
-	Map
-	JsonValueHolder
-	EditAt(key string, path string, ex Expression) error
-	ExtractAt(key string, path string) (string, error)
-}
-
-type jsonMap struct {
-	*dict
+type JSONMap struct {
+	*Map
 	*Bome
-	JsonValueHolder
-
-	tableName string
+	*JsonValueHolder
 }
 
-func (m *jsonMap) BeginTransaction() (JSONMapTransaction, error) {
+func (m *JSONMap) BeginTransaction() (*JSONMapTx, error) {
 	tx, err := m.BeginTx()
 	if err != nil {
 		return nil, err
 	}
-	return &txJsonMap{
-		jsonMap: m,
-		tx:      tx,
+	return &JSONMapTx{
+		tx: tx,
 	}, nil
 }
 
-func (m *jsonMap) ContinueTransaction(tx *TX) JSONMapTransaction {
-	return &txJsonMap{
-		jsonMap: m,
-		tx:      tx,
+func (m *JSONMap) ContinueTransaction(tx *TX) *JSONMapTx {
+	return &JSONMapTx{
+		tx: tx,
 	}
 }
 
-func (m *jsonMap) Client() Client {
+func (m *JSONMap) Client() Client {
 	return m.Bome
 }
 
-func (m *jsonMap) EditAt(key string, path string, ex Expression) error {
-	rawQuery := fmt.Sprintf("update %s set value=json_set(value, '%s', %s) where name=?;",
-		m.tableName,
+func (m *JSONMap) EditAt(key string, path string, ex Expression) error {
+	rawQuery := fmt.Sprintf("update $table$ set value=json_set(value, '%s', %s) where name=?;",
 		normalizedJsonPath(path),
 		ex.eval())
-	rawQuery = strings.Replace(rawQuery, "__value__", "value", -1)
 	return m.Client().SQLExec(rawQuery, key)
 }
 
-func (m *jsonMap) ExtractAt(key string, path string) (string, error) {
-	rawQuery := fmt.Sprintf("select json_unquote(json_extract(value, '%s')) from %s where name=?;", path, m.tableName)
+func (m *JSONMap) ExtractAt(key string, path string) (string, error) {
+	rawQuery := fmt.Sprintf("select json_unquote(json_extract(value, '%s')) from $table$ where name=?;", path)
 	o, err := m.Client().SQLQueryFirst(rawQuery, StringScanner, key)
 	if err != nil {
 		return "", err
@@ -64,10 +49,8 @@ func (m *jsonMap) ExtractAt(key string, path string) (string, error) {
 
 // NewJSONMap creates a table based key-value map
 // The table has two columns: an string key and a json-string value
-func NewJSONMap(db *sql.DB, dialect string, tableName string) (JSONMap, error) {
-	d := new(jsonMap)
-	d.tableName = escaped(tableName)
-	d.dict = new(dict)
+func NewJSONMap(db *sql.DB, dialect string, tableName string) (*JSONMap, error) {
+	d := new(JSONMap)
 
 	var err error
 	var b *Bome
@@ -84,10 +67,10 @@ func NewJSONMap(db *sql.DB, dialect string, tableName string) (JSONMap, error) {
 	}
 
 	d.Bome = b
-	d.JsonValueHolder = NewJsonValueHolder(d.tableName, "value", b)
-	d.dict = &dict{Bome: b}
+	d.JsonValueHolder = NewJsonValueHolder("value", b)
+	d.Map = &Map{Bome: b}
 
-	d.SetTablePrefix(d.tableName).
-		AddTableDefinition("create table if not exists $prefix$ (name varchar(255) not null primary key, value json not null);")
+	d.SetTableName(escaped(tableName)).
+		AddTableDefinition("create table if not exists $table$ (name varchar(255) not null primary key, value json not null);")
 	return d, d.Init()
 }

@@ -5,53 +5,45 @@ import (
 	"fmt"
 )
 
-// JSONDoubleMap is a convenience for double mapping persistent store
-type JSONDoubleMap interface {
-	DoubleMap
-	JsonValueHolder
-	EditAt(firstKey, secondKey string, path string, data string) error
-	ExtractAt(firstKey, secondKey string, path string) (string, error)
-}
-
-type jsonDoubleMap struct {
+type JSONDoubleMap struct {
 	*Bome
-	*doubleMap
-	JsonValueHolder
-	tableName string
-	dialect   string
+	*DoubleMap
+	*JsonValueHolder
+	dialect string
 }
 
-func (s *jsonDoubleMap) BeginTransaction() (JSONDoubleMapTransaction, error) {
+func (s *JSONDoubleMap) BeginTransaction() (*JSONDoubleMapTx, error) {
 	tx, err := s.Bome.BeginTx()
 	if err != nil {
 		return nil, err
 	}
 
-	return &txJsonDoubleMap{
-		jsonDoubleMap: s,
-		tx:            tx,
+	return &JSONDoubleMapTx{
+		tx: tx,
 	}, nil
 }
 
-func (s *jsonDoubleMap) ContinueTransaction(tx *TX) JSONDoubleMapTransaction {
-	return &txJsonDoubleMap{
-		jsonDoubleMap: s,
-		tx:            tx,
+func (s *JSONDoubleMap) ContinueTransaction(tx *TX) *JSONDoubleMapTx {
+	return &JSONDoubleMapTx{
+		tx: tx,
 	}
 }
 
-func (s *jsonDoubleMap) EditAt(firstKey, secondKey string, path string, value string) error {
-	rawQuery := fmt.Sprintf("update %s set value=json_set(value, '%s', \"%s\") where first_key=? and second_key=?;",
-		s.tableName,
+func (s *JSONDoubleMap) Client() Client {
+	return s.Bome
+}
+
+func (s *JSONDoubleMap) EditAt(firstKey, secondKey string, path string, value string) error {
+	rawQuery := fmt.Sprintf("update $table$ set value=json_set(value, '%s', \"%s\") where first_key=? and second_key=?;",
 		normalizedJsonPath(path),
 		value,
 	)
 	return s.Client().SQLExec(rawQuery, firstKey, secondKey)
 }
 
-func (s *jsonDoubleMap) ExtractAt(firstKey, secondKey string, path string) (string, error) {
+func (s *JSONDoubleMap) ExtractAt(firstKey, secondKey string, path string) (string, error) {
 	rawQuery := fmt.Sprintf(
-		"select json_unquote(json_extract(value, '%s')) from %s where first_key=? and second_key=?;", path, s.tableName)
+		"select json_unquote(json_extract(value, '%s')) from $table$ where first_key=? and second_key=?;", path)
 	o, err := s.Client().SQLQueryFirst(rawQuery, StringScanner, firstKey, secondKey)
 	if err != nil {
 		return "", err
@@ -60,10 +52,8 @@ func (s *jsonDoubleMap) ExtractAt(firstKey, secondKey string, path string) (stri
 }
 
 // NewJSONDoubleMap creates MySQL wrapped DoubleMap
-func NewJSONDoubleMap(db *sql.DB, dialect string, tableName string) (JSONDoubleMap, error) {
-	d := new(jsonDoubleMap)
-	d.doubleMap = new(doubleMap)
-	d.tableName = tableName
+func NewJSONDoubleMap(db *sql.DB, dialect string, tableName string) (*JSONDoubleMap, error) {
+	d := new(JSONDoubleMap)
 	d.dialect = dialect
 
 	var err error
@@ -81,19 +71,19 @@ func NewJSONDoubleMap(db *sql.DB, dialect string, tableName string) (JSONDoubleM
 	}
 
 	d.Bome = b
-	d.JsonValueHolder = NewJsonValueHolder(d.tableName, "value", b)
-	d.doubleMap = &doubleMap{
+	d.JsonValueHolder = NewJsonValueHolder("value", b)
+	d.DoubleMap = &DoubleMap{
 		Bome: b,
 	}
 
-	d.SetTablePrefix(tableName).
-		AddTableDefinition("create table if not exists $prefix$ (first_key varchar(255) not null, second_key varchar(255) not null, value json not null);")
+	d.SetTableName(escaped(tableName)).
+		AddTableDefinition("create table if not exists $table$ (first_key varchar(255) not null, second_key varchar(255) not null, value json not null);")
 
 	err = d.Init()
 	if err != nil {
 		return nil, err
 	}
 
-	err = d.AddUniqueIndex(Index{Name: "unique_keys", Table: "$prefix$", Fields: []string{"first_key", "second_key"}}, false)
+	err = d.AddUniqueIndex(Index{Name: "unique_keys", Table: "$table$", Fields: []string{"first_key", "second_key"}}, false)
 	return d, err
 }

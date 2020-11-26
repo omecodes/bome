@@ -5,63 +5,49 @@ import (
 	"log"
 )
 
-// Map is a convenience for persistent string to string dict
-type Map interface {
-	Save(entry *MapEntry) error
-	Get(key string) (string, error)
-	Contains(key string) (bool, error)
-	Range(offset, count int) ([]*MapEntry, error)
-	Delete(key string) error
-	List() (Cursor, error)
-	Clear() error
-	Close() error
-}
-
-type dict struct {
+type Map struct {
 	*Bome
 }
 
-func (d *dict) BeginTransaction() (MapTransaction, error) {
+func (d *Map) BeginTransaction() (*MapTx, error) {
 	tx, err := d.BeginTx()
 	if err != nil {
 		return nil, err
 	}
 
-	return &txDict{
-		dict: d,
-		tx:   tx,
+	return &MapTx{
+		tx: tx,
 	}, nil
 }
 
-func (d *dict) ContinueTransaction(tx *TX) MapTransaction {
-	return &txDict{
-		dict: d,
-		tx:   tx,
+func (d *Map) ContinueTransaction(tx *TX) *MapTx {
+	return &MapTx{
+		tx: tx,
 	}
 }
 
-func (d *dict) Client() Client {
+func (d *Map) Client() Client {
 	return d.Bome
 }
 
-func (d *dict) Save(entry *MapEntry) error {
-	err := d.Client().SQLExec("insert into $prefix$ values (?, ?);", entry.Key, entry.Value)
+func (d *Map) Save(entry *MapEntry) error {
+	err := d.Client().SQLExec("insert into $table$ values (?, ?);", entry.Key, entry.Value)
 	if err != nil {
-		err = d.Client().SQLExec("update $prefix$ set value=? where name=?;", entry.Value, entry.Key)
+		err = d.Client().SQLExec("update $table$ set value=? where name=?;", entry.Value, entry.Key)
 	}
 	return err
 }
 
-func (d *dict) Get(key string) (string, error) {
-	o, err := d.Client().SQLQueryFirst("select value from $prefix$ where name=?;", StringScanner, key)
+func (d *Map) Get(key string) (string, error) {
+	o, err := d.Client().SQLQueryFirst("select value from $table$ where name=?;", StringScanner, key)
 	if err != nil {
 		return "", err
 	}
 	return o.(string), nil
 }
 
-func (d *dict) Contains(key string) (bool, error) {
-	res, err := d.Client().SQLQueryFirst("select 1 from $prefix$ where name=?;", BoolScanner, key)
+func (d *Map) Contains(key string) (bool, error) {
+	res, err := d.Client().SQLQueryFirst("select 1 from $table$ where name=?;", BoolScanner, key)
 	if err != nil {
 		if IsNotFound(err) {
 			return false, nil
@@ -71,8 +57,8 @@ func (d *dict) Contains(key string) (bool, error) {
 	return res.(bool), nil
 }
 
-func (d *dict) Range(offset, count int) ([]*MapEntry, error) {
-	c, err := d.Client().SQLQuery("select * from $prefix$ limit ?, ?;", MapEntryScanner, offset, count)
+func (d *Map) Range(offset, count int) ([]*MapEntry, error) {
+	c, err := d.Client().SQLQuery("select * from $table$ limit ?, ?;", MapEntryScanner, offset, count)
 	if err != nil {
 		return nil, err
 	}
@@ -93,25 +79,25 @@ func (d *dict) Range(offset, count int) ([]*MapEntry, error) {
 	return entries, nil
 }
 
-func (d *dict) Delete(key string) error {
-	return d.Client().SQLExec("delete from $prefix$ where name=?;", key)
+func (d *Map) Delete(key string) error {
+	return d.Client().SQLExec("delete from $table$ where name=?;", key)
 }
 
-func (d *dict) List() (Cursor, error) {
-	return d.Client().SQLQuery("select * from $prefix$;", MapEntryScanner)
+func (d *Map) List() (Cursor, error) {
+	return d.Client().SQLQuery("select * from $table$;", MapEntryScanner)
 }
 
-func (d *dict) Clear() error {
-	return d.Client().SQLExec("delete from $prefix$;")
+func (d *Map) Clear() error {
+	return d.Client().SQLExec("delete from $table$;")
 }
 
-func (d *dict) Close() error {
+func (d *Map) Close() error {
 	return d.Bome.sqlDb.Close()
 }
 
 // NewMap creates MySQL wrapped map
-func NewMap(db *sql.DB, dialect string, tableName string) (Map, error) {
-	d := new(dict)
+func NewMap(db *sql.DB, dialect string, tableName string) (*Map, error) {
+	d := new(Map)
 	var err error
 
 	if dialect == SQLite3 {
@@ -126,7 +112,8 @@ func NewMap(db *sql.DB, dialect string, tableName string) (Map, error) {
 		return nil, err
 	}
 
-	d.SetTablePrefix(tableName).
-		AddTableDefinition("create table if not exists $prefix$ (name varchar(255) not null primary key, value longtext not null);")
+	d.SetTableName(escaped(tableName)).
+		AddTableDefinition(
+			"create table if not exists $table$ (name varchar(255) not null primary key, value longtext not null);")
 	return d, d.Init()
 }

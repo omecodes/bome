@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	list      List
+	list      *List
 	db        *sql.DB
 	listItem1 = "item 1"
 	listItem2 = "item 2"

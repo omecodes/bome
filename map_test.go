@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	dbMap Map
+	dbMap *Map
 
 	mapEntry1 = MapEntry{Key: "k1", Value: "v1"}
 	mapEntry2 = MapEntry{Key: "k2", Value: "v2"}

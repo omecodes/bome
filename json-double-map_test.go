@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	dbJsonDoubleMap JSONDoubleMap
+	dbJsonDoubleMap *JSONDoubleMap
 	person1         = DoubleMapEntry{
 		FirstKey:  "people",
 		SecondKey: "zebou",

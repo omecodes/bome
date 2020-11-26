@@ -5,51 +5,41 @@ import (
 	"fmt"
 )
 
-// JSONList is a convenience for persistence list
-type JSONList interface {
-	List
-	EditAt(index int64, path string, sqlValue string) error
-	ExtractAt(index int64, path string) (string, error)
-}
-
-type jsonList struct {
-	*listDB
-	JsonValueHolder
+type JSONList struct {
+	*List
+	*JsonValueHolder
 	*Bome
-	tableName string
 }
 
-func (l *jsonList) BeginTransaction() (JsonListTransaction, error) {
+func (l *JSONList) BeginTransaction() (*JSONListTx, error) {
 	tx, err := l.BeginTx()
 	if err != nil {
 		return nil, err
 	}
-	return &txJsonList{
-		jsonList: l,
-		tx:       tx,
+	return &JSONListTx{
+		tx: tx,
 	}, nil
 }
 
-func (l *jsonList) ContinueTransaction(tx *TX) JsonListTransaction {
-	return &txJsonList{
-		jsonList: l,
-		tx:       tx,
+func (l *JSONList) ContinueTransaction(tx *TX) *JSONListTx {
+	return &JSONListTx{
+		tx: tx,
 	}
 }
 
-func (l *jsonList) Client() Client {
+func (l *JSONList) Client() Client {
 	return l.Bome
 }
 
-func (l *jsonList) EditAt(index int64, path string, sqlValue string) error {
+func (l *JSONList) EditAt(index int64, path string, sqlValue string) error {
 	rawQuery := fmt.Sprintf(
-		"update %s set value=json_set(value, '%s', %s) where ind=?;", l.tableName, path, sqlValue)
+		"update $table$ set value=json_set(value, '%s', %s) where ind=?;", path, sqlValue)
 	return l.Client().SQLExec(rawQuery, index)
 }
 
-func (l *jsonList) ExtractAt(index int64, path string) (string, error) {
+func (l *JSONList) ExtractAt(index int64, path string) (string, error) {
 	rawQuery := fmt.Sprintf(
-		"select json_unquote(json_extract(value, '%s')) from %s where ind=?;", path, l.tableName)
+		"select json_unquote(json_extract(value, '%s')) from $table$ where ind=?;", path)
 	o, err := l.Client().SQLQueryFirst(rawQuery, StringScanner, index)
 	if err != nil {
 		return "", err
@@ -59,10 +49,9 @@ func (l *jsonList) ExtractAt(index int64, path string) (string, error) {
 
 // NewJSONList creates a single table based list
 // The table has two columns: an integer index and a json-string value
-func NewJSONList(db *sql.DB, dialect string, tableName string) (JSONList, error) {
-	d := new(jsonList)
-	d.tableName = escaped(tableName)
-	d.listDB = new(listDB)
+func NewJSONList(db *sql.DB, dialect string, tableName string) (*JSONList, error) {
+	d := new(JSONList)
+	d.List = new(List)
 
 	var err error
 	var b *Bome
@@ -79,12 +68,13 @@ func NewJSONList(db *sql.DB, dialect string, tableName string) (JSONList, error)
 	}
 
 	d.Bome = b
-	d.JsonValueHolder = NewJsonValueHolder(d.tableName, "value", b)
-	d.listDB = &listDB{
+	d.JsonValueHolder = NewJsonValueHolder("value", b)
+	d.List = &List{
 		Bome: b,
 	}
 
-	d.SetTablePrefix(tableName).
-		AddTableDefinition("create table if not exists $prefix$ (ind integer not null primary key $auto_increment$, value json not null);")
+	d.SetTableName(escaped(tableName)).
+		AddTableDefinition(
+			"create table if not exists $table$ (ind integer not null primary key $auto_increment$, value json not null);")
 	return d, d.Init()
 }
