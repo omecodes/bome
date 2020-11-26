@@ -107,6 +107,14 @@ func (tx *ListTx) GetAllFromSeq(index int64) (Cursor, error) {
 	return tx.Client().SQLQuery("select * from $table$ where ind>? order by ind;", ListEntryScanner, index)
 }
 
+func (tx *ListTx) AllBefore(index int64) (Cursor, error) {
+	return tx.Client().SQLQuery("select * from $table$ where ind<? order by ind;", ListEntryScanner, index)
+}
+
+func (tx *ListTx) AllAfter(index int64) (Cursor, error) {
+	return tx.Client().SQLQuery("select * from $table$ where ind>=? order by ind;", ListEntryScanner, index)
+}
+
 func (tx *ListTx) Delete(index int64) error {
 	return tx.Client().SQLExec("delete from $table$ where ind=?;", index)
 }
