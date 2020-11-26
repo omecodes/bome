@@ -2,7 +2,7 @@ package bome
 
 // ListEntry is the list entry definition
 type ListEntry struct {
-	Index int
+	Index int64
 	Value string
 }
 
