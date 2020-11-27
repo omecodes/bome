@@ -53,6 +53,22 @@ func (tx *JSONListTx) Count() (int64, error) {
 	return res.(int64), nil
 }
 
+func (tx *JSONListTx) Size(index int64) (int, error) {
+	o, err := tx.Client().SQLQueryFirst("select coalesce(length(value), 0) from $table$ where ind=?;", IntScanner, index)
+	if err != nil {
+		return 0, err
+	}
+	return o.(int), nil
+}
+
+func (tx *JSONListTx) TotalSize() (int64, error) {
+	o, err := tx.Client().SQLQueryFirst("select coalesce(sum(length(value), 0) from $table$;", IntScanner)
+	if err != nil {
+		return 0, err
+	}
+	return o.(int64), nil
+}
+
 func (tx *JSONListTx) GetNextFromSeq(index int64) (*ListEntry, error) {
 	o, err := tx.Client().SQLQueryFirst("select * from $table$ where ind>? order by ind;", ListEntryScanner, index)
 	if err != nil {

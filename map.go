@@ -46,6 +46,22 @@ func (d *Map) Get(key string) (string, error) {
 	return o.(string), nil
 }
 
+func (d *Map) Size(index int64) (int, error) {
+	o, err := d.Client().SQLQueryFirst("select coalesce(length(value), 0) from $table$ where ind=?;", IntScanner, index)
+	if err != nil {
+		return 0, err
+	}
+	return o.(int), nil
+}
+
+func (d *Map) TotalSize() (int64, error) {
+	o, err := d.Client().SQLQueryFirst("select coalesce(sum(length(value), 0) from $table$;", IntScanner)
+	if err != nil {
+		return 0, err
+	}
+	return o.(int64), nil
+}
+
 func (d *Map) Contains(key string) (bool, error) {
 	res, err := d.Client().SQLQueryFirst("select 1 from $table$ where name=?;", BoolScanner, key)
 	if err != nil {

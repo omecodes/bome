@@ -40,6 +40,39 @@ func (s *JsonValueHolder) Client() Client {
 	return s.Bome
 }
 
+func (s *JsonValueHolder) Count() (int, error) {
+	o, err := s.Client().SQLQueryFirst("select count(*) from $table$;", IntScanner)
+	if err != nil {
+		return 0, err
+	}
+	return o.(int), nil
+}
+
+func (s *JsonValueHolder) Size(firstKey string, secondKey string) (int, error) {
+	o, err := s.Client().SQLQueryFirst("select length(value) from $table$ where first_key=? and second_key=?;", IntScanner, firstKey, secondKey)
+	if err != nil {
+		return 0, err
+	}
+	return o.(int), nil
+}
+
+func (s *JsonValueHolder) TotalSize() (int64, error) {
+	count, err := s.Count()
+	if err != nil {
+		return 0, nil
+	}
+
+	if count == 0 {
+		return 0, nil
+	}
+
+	o, err := s.Client().SQLQueryFirst("select sum(length(value)) from $table$;", IntScanner)
+	if err != nil {
+		return 0, err
+	}
+	return o.(int64), nil
+}
+
 func (s *JsonValueHolder) EditAll(path string, ex Expression) error {
 	rawQuery := fmt.Sprintf(
 		"update $table$ set __value__=json_set(%s, '%s', %s);",

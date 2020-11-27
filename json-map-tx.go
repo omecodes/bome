@@ -41,6 +41,22 @@ func (tx *JSONMapTx) Contains(key string) (bool, error) {
 	return res.(bool), nil
 }
 
+func (tx *JSONMapTx) Size(index int64) (int, error) {
+	o, err := tx.Client().SQLQueryFirst("select coalesce(length(value), 0) from $table$ where ind=?;", IntScanner, index)
+	if err != nil {
+		return 0, err
+	}
+	return o.(int), nil
+}
+
+func (tx *JSONMapTx) TotalSize() (int64, error) {
+	o, err := tx.Client().SQLQueryFirst("select coalesce(sum(length(value), 0) from $table$;", IntScanner)
+	if err != nil {
+		return 0, err
+	}
+	return o.(int64), nil
+}
+
 func (tx *JSONMapTx) Range(offset, count int) ([]*MapEntry, error) {
 	c, err := tx.Client().SQLQuery("select * from $table$ limit ?, ?;", MapEntryScanner, offset, count)
 	if err != nil {

@@ -69,6 +69,22 @@ func (l *List) Count() (int64, error) {
 	return res.(int64), nil
 }
 
+func (l *List) Size(index int64) (int, error) {
+	o, err := l.Client().SQLQueryFirst("select coalesce(length(value), 0) from $table$ where ind=?;", IntScanner, index)
+	if err != nil {
+		return 0, err
+	}
+	return o.(int), nil
+}
+
+func (l *List) TotalSize() (int64, error) {
+	o, err := l.Client().SQLQueryFirst("select coalesce(sum(length(value), 0) from $table$;", IntScanner)
+	if err != nil {
+		return 0, err
+	}
+	return o.(int64), nil
+}
+
 func (l *List) GetNextFromSeq(index int64) (*ListEntry, error) {
 	o, err := l.Client().SQLQueryFirst("select * from $table$ where ind>? order by ind;", ListEntryScanner, index)
 	if err != nil {

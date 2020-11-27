@@ -15,6 +15,46 @@ func (tx *DoubleMapTx) Contains(firstKey, secondKey string) (bool, error) {
 	return o.(bool), err
 }
 
+func (tx *DoubleMapTx) Count() (int, error) {
+	o, err := tx.Client().SQLQueryFirst("select count(*) from $table$;", IntScanner)
+	if err != nil {
+		return 0, err
+	}
+	return o.(int), nil
+}
+
+func (tx *DoubleMapTx) CountForFirstKey(key string) (int, error) {
+	o, err := tx.Client().SQLQueryFirst("select count(*) from $table$ where first_key=?;", IntScanner, key)
+	if err != nil {
+		return 0, err
+	}
+	return o.(int), nil
+}
+
+func (tx *DoubleMapTx) CountForSecondKey(key string) (int, error) {
+	o, err := tx.Client().SQLQueryFirst("select count(*) from $table$ where second_key=?;", IntScanner, key)
+	if err != nil {
+		return 0, err
+	}
+	return o.(int), nil
+}
+
+func (tx *DoubleMapTx) Size(firstKey string, secondKey string) (int, error) {
+	o, err := tx.Client().SQLQueryFirst("select coalesce(length(value), 0) from $table$ where first_key=? and second_key=?;", IntScanner, firstKey, secondKey)
+	if err != nil {
+		return 0, err
+	}
+	return o.(int), nil
+}
+
+func (tx *DoubleMapTx) TotalSize() (int64, error) {
+	o, err := tx.Client().SQLQueryFirst("select coalesce(sum(length(value)), 0) from $table$;", IntScanner)
+	if err != nil {
+		return 0, err
+	}
+	return o.(int64), nil
+}
+
 func (tx *DoubleMapTx) Save(m *DoubleMapEntry) error {
 	if tx.Client().SQLExec("insert into $table$ values (?, ?, ?);", m.FirstKey, m.SecondKey, m.Value) != nil {
 		return tx.Client().SQLExec("update $table$ set value=? where first_key=? and second_key=?;", m.Value, m.FirstKey, m.SecondKey)
