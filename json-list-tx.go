@@ -122,8 +122,12 @@ func (tx *JSONListTx) Range(offset, count int) ([]*ListEntry, error) {
 	return entries, nil
 }
 
-func (tx *JSONListTx) GetAllFromSeq(index int64) (Cursor, error) {
-	return tx.Client().SQLQuery("select * from $table$ where ind>? order by ind;", ListEntryScanner, index)
+func (tx *JSONListTx) AllBefore(index int64) (Cursor, error) {
+	return tx.Client().SQLQuery("select * from $table$ where ind<=? order by ind;", ListEntryScanner, index)
+}
+
+func (tx *JSONListTx) AllAfter(index int64) (Cursor, error) {
+	return tx.Client().SQLQuery("select * from $table$ where ind>=? order by ind;", ListEntryScanner, index)
 }
 
 func (tx *JSONListTx) Delete(index int64) error {

@@ -138,7 +138,7 @@ func (l *List) Range(offset, count int) ([]*ListEntry, error) {
 	return entries, nil
 }
 
-func (l *List) GetAllFromSeq(index int64) (Cursor, error) {
+func (l *List) AllFromSeq(index int64) (Cursor, error) {
 	return l.Client().SQLQuery("select * from $table$ where ind>? order by ind;", ListEntryScanner, index)
 }
 
