@@ -37,8 +37,8 @@ func (tx *MapTx) Contains(key string) (bool, error) {
 	return res.(bool), nil
 }
 
-func (tx *MapTx) Size(index int64) (int, error) {
-	o, err := tx.Client().SQLQueryFirst("select coalesce(length(value), 0) from $table$ where ind=?;", IntScanner, index)
+func (tx *MapTx) Size(key string) (int, error) {
+	o, err := tx.Client().SQLQueryFirst("select coalesce(length(value), 0) from $table$ where name=?;", IntScanner, key)
 	if err != nil {
 		return 0, err
 	}

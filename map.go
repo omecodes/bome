@@ -46,8 +46,8 @@ func (d *Map) Get(key string) (string, error) {
 	return o.(string), nil
 }
 
-func (d *Map) Size(index int64) (int, error) {
-	o, err := d.Client().SQLQueryFirst("select coalesce(length(value), 0) from $table$ where ind=?;", IntScanner, index)
+func (d *Map) Size(key string) (int, error) {
+	o, err := d.Client().SQLQueryFirst("select coalesce(length(value), 0) from $table$ where name=?;", IntScanner, key)
 	if err != nil {
 		return 0, err
 	}

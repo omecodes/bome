@@ -2,7 +2,6 @@ package bome
 
 import (
 	"fmt"
-	"strings"
 )
 
 type JsonValueHolderTx struct {
@@ -16,24 +15,24 @@ func (s *JsonValueHolderTx) Client() Client {
 
 func (s *JsonValueHolderTx) EditAll(path string, ex Expression) error {
 	rawQuery := fmt.Sprintf(
-		"update $table$ set __value__=json_set(%s, '%s', %s);",
+		"update $table$ set %s=json_set(%s, '%s', %s);",
+		s.field,
 		s.field,
 		normalizedJsonPath(path),
 		ex.eval(),
 	)
-	rawQuery = strings.Replace(rawQuery, "__value__", s.field, -1)
 	return s.Client().SQLExec(rawQuery)
 }
 
 func (s *JsonValueHolderTx) EditAllMatching(path string, ex Expression, condition BoolExpr) error {
 	rawQuery := fmt.Sprintf(
-		"update $table$ set __value__=json_insert(%s, '%s', %s) where %s",
+		"update $table$ set %s=json_insert(%s, '%s', %s) where %s",
+		s.field,
 		s.field,
 		normalizedJsonPath(path),
 		ex.eval(),
 		condition.sql(),
 	)
-	rawQuery = strings.Replace(rawQuery, "__value__", s.field, -1)
 	return s.Client().SQLExec(rawQuery)
 }
 
@@ -43,7 +42,6 @@ func (s *JsonValueHolderTx) ExtractAll(path string, condition BoolExpr, scannerN
 		path,
 		condition.sql(),
 	)
-	rawQuery = strings.Replace(rawQuery, "__value__", s.field, -1)
 	return s.Client().SQLQuery(rawQuery, scannerName)
 }
 
@@ -51,7 +49,6 @@ func (s *JsonValueHolderTx) Search(condition BoolExpr, scannerName string) (Curs
 	rawQuery := fmt.Sprintf("select * from $table$ where %s;",
 		condition.sql(),
 	)
-	rawQuery = strings.Replace(rawQuery, "__value__", s.field, -1)
 	return s.Client().SQLQuery(rawQuery, scannerName)
 }
 
@@ -59,7 +56,6 @@ func (s *JsonValueHolderTx) RangeOf(condition BoolExpr, scannerName string, offs
 	rawQuery := fmt.Sprintf("select * from $table$ where %s limit ?, ?;",
 		condition.sql(),
 	)
-	rawQuery = strings.Replace(rawQuery, "__value__", s.field, -1)
 	return s.Client().SQLQuery(rawQuery, scannerName, offset, count)
 }
 

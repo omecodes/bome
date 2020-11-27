@@ -41,8 +41,8 @@ func (tx *JSONMapTx) Contains(key string) (bool, error) {
 	return res.(bool), nil
 }
 
-func (tx *JSONMapTx) Size(index int64) (int, error) {
-	o, err := tx.Client().SQLQueryFirst("select coalesce(length(value), 0) from $table$ where ind=?;", IntScanner, index)
+func (tx *JSONMapTx) Size(key string) (int, error) {
+	o, err := tx.Client().SQLQueryFirst("select coalesce(length(value), 0) from $table$ where ind=?;", IntScanner, key)
 	if err != nil {
 		return 0, err
 	}

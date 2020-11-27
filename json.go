@@ -48,8 +48,8 @@ func (s *JsonValueHolder) Count() (int, error) {
 	return o.(int), nil
 }
 
-func (s *JsonValueHolder) Size(firstKey string, secondKey string) (int, error) {
-	o, err := s.Client().SQLQueryFirst("select length(value) from $table$ where first_key=? and second_key=?;", IntScanner, firstKey, secondKey)
+func (s *JsonValueHolder) Size(condition BoolExpr) (int, error) {
+	o, err := s.Client().SQLQueryFirst("select length(value) from $table$ where %s;", IntScanner, condition.sql())
 	if err != nil {
 		return 0, err
 	}
