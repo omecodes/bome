@@ -27,7 +27,7 @@ func (c *contains) sql() string {
 	expr = expr[:len(expr)-1]
 	expr = "'%" + expr + "%'"
 
-	return "(__value__ like " + expr + ")"
+	return "(value like " + expr + ")"
 }
 
 type startsWith struct {
@@ -40,7 +40,7 @@ func (s *startsWith) sql() string {
 		expr = expr[:len(expr)-1]
 	}
 	expr = expr + "%'"
-	return "(__value__ like " + expr + ")"
+	return "(value like " + expr + ")"
 }
 
 type endsWith struct {
@@ -50,7 +50,7 @@ type endsWith struct {
 func (e *endsWith) sql() string {
 	expr := e.e.eval()
 	expr = "'%" + expr[1:]
-	return "(__value__ like " + expr + ")"
+	return "(value like " + expr + ")"
 }
 
 type jsonContainsPath struct {
@@ -58,7 +58,7 @@ type jsonContainsPath struct {
 }
 
 func (c *jsonContainsPath) sql() string {
-	return "(json_contains_path(__value__, 'one',  '" + c.path + "'))"
+	return "(json_contains_path(value, 'one',  '" + c.path + "'))"
 }
 
 type jsonAtEquals struct {
@@ -73,7 +73,7 @@ func (c *jsonAtEquals) sql() string {
 	expr = "'" + expr + "'"
 
 	builder := strings.Builder{}
-	builder.WriteString("(json_unquote(json_extract(__value__,'")
+	builder.WriteString("(json_unquote(json_extract(value,'")
 	builder.WriteString(c.path)
 	builder.WriteString("')) = ")
 	builder.WriteString(expr)
@@ -93,7 +93,7 @@ func (c *jsonAtContains) sql() string {
 	expr = "'%" + expr + "%'"
 
 	builder := strings.Builder{}
-	builder.WriteString("(json_unquote(json_extract(__value__,'")
+	builder.WriteString("(json_unquote(json_extract(value,'")
 	builder.WriteString(c.path)
 	builder.WriteString("')) like ")
 	builder.WriteString(expr)
@@ -112,7 +112,7 @@ func (s *jsonAtStartWith) sql() string {
 	expr = expr + "%'"
 
 	builder := strings.Builder{}
-	builder.WriteString("(json_unquote(json_extract(__value__,'")
+	builder.WriteString("(json_unquote(json_extract(value,'")
 	builder.WriteString(s.path)
 	builder.WriteString("')) like ")
 	builder.WriteString(expr)
@@ -130,7 +130,7 @@ func (e *jsonAtEndsWith) sql() string {
 	expr = "'%" + expr[1:]
 
 	builder := strings.Builder{}
-	builder.WriteString("(json_unquote(json_extract(__value__,'")
+	builder.WriteString("(json_unquote(json_extract(value,'")
 	builder.WriteString(e.path)
 	builder.WriteString("')) like ")
 	builder.WriteString(expr)
@@ -146,7 +146,7 @@ type jsonAtLt struct {
 func (c *jsonAtLt) sql() string {
 	expr := c.e.eval()
 	builder := strings.Builder{}
-	builder.WriteString("(json_unquote(json_extract(__value__,'")
+	builder.WriteString("(json_unquote(json_extract(value,'")
 	builder.WriteString(c.path)
 	builder.WriteString("')) < ")
 	builder.WriteString(expr)
@@ -162,7 +162,7 @@ type jsonAtLe struct {
 func (c *jsonAtLe) sql() string {
 	expr := c.e.eval()
 	builder := strings.Builder{}
-	builder.WriteString("(json_unquote(json_extract(__value__,'")
+	builder.WriteString("(json_unquote(json_extract(value,'")
 	builder.WriteString(c.path)
 	builder.WriteString("')) <= ")
 	builder.WriteString(expr)
@@ -178,7 +178,7 @@ type jsonAtGt struct {
 func (c *jsonAtGt) sql() string {
 	expr := c.e.eval()
 	builder := strings.Builder{}
-	builder.WriteString("(json_unquote(json_extract(__value__,'")
+	builder.WriteString("(json_unquote(json_extract(value,'")
 	builder.WriteString(c.path)
 	builder.WriteString("')) > ")
 	builder.WriteString(expr)
@@ -194,7 +194,7 @@ type jsonAtGe struct {
 func (c *jsonAtGe) sql() string {
 	expr := c.e.eval()
 	builder := strings.Builder{}
-	builder.WriteString("(json_unquote(json_extract(__value__,'")
+	builder.WriteString("(json_unquote(json_extract(value,'")
 	builder.WriteString(c.path)
 	builder.WriteString("')) >= ")
 	builder.WriteString(expr)
@@ -215,7 +215,7 @@ type eq struct {
 }
 
 func (e *eq) sql() string {
-	return "__value__ = " + e.e.eval()
+	return "value = " + e.e.eval()
 }
 
 type ne struct {
@@ -223,7 +223,7 @@ type ne struct {
 }
 
 func (n *ne) sql() string {
-	return "__value__ != " + n.e.eval()
+	return "value != " + n.e.eval()
 }
 
 type gt struct {
@@ -231,7 +231,7 @@ type gt struct {
 }
 
 func (g *gt) sql() string {
-	return "__value__ > " + g.e.eval()
+	return "value > " + g.e.eval()
 }
 
 type gte struct {
@@ -239,7 +239,7 @@ type gte struct {
 }
 
 func (g *gte) sql() string {
-	return "__value__ >= " + g.e.eval()
+	return "value >= " + g.e.eval()
 }
 
 type lt struct {
@@ -247,7 +247,7 @@ type lt struct {
 }
 
 func (l *lt) sql() string {
-	return "__value__ < " + l.e.eval()
+	return "value < " + l.e.eval()
 }
 
 type lte struct {
@@ -255,7 +255,7 @@ type lte struct {
 }
 
 func (l *lte) sql() string {
-	return "__value__ <= " + l.e.eval()
+	return "value <= " + l.e.eval()
 }
 
 type rawExpression struct {
