@@ -2,6 +2,7 @@ package bome
 
 import (
 	"database/sql"
+	"strings"
 )
 
 type transaction interface {
@@ -18,12 +19,18 @@ type TX struct {
 
 //SExec executes the statement saved as name
 func (tx *TX) SQLExec(query string, args ...interface{}) error {
+	for name, value := range tx.dbome.vars {
+		query = strings.Replace(query, name, value, -1)
+	}
 	_, err := tx.Exec(query, args...)
 	return err
 }
 
 //SQuery executes the query statement saved as name
 func (tx *TX) SQLQuery(query string, scannerName string, args ...interface{}) (Cursor, error) {
+	for name, value := range tx.dbome.vars {
+		query = strings.Replace(query, name, value, -1)
+	}
 	rows, err := tx.Query(query, args...)
 	if err != nil {
 		return nil, err
@@ -37,6 +44,10 @@ func (tx *TX) SQLQuery(query string, scannerName string, args ...interface{}) (C
 
 // SQueryFirst get the first result of the query statement saved as name
 func (tx *TX) SQLQueryFirst(query string, scannerName string, args ...interface{}) (interface{}, error) {
+	for name, value := range tx.dbome.vars {
+		query = strings.Replace(query, name, value, -1)
+	}
+
 	rows, err := tx.Query(query, args...)
 	if err != nil {
 		return nil, err
