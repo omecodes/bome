@@ -8,6 +8,7 @@ import (
 type JSONMap struct {
 	*Map
 	*Bome
+	tableName string
 }
 
 func (m *JSONMap) BeginTransaction() (*JSONMapTx, error) {
@@ -16,13 +17,15 @@ func (m *JSONMap) BeginTransaction() (*JSONMapTx, error) {
 		return nil, err
 	}
 	return &JSONMapTx{
-		tx: tx,
+		tableName: m.tableName,
+		tx:        tx,
 	}, nil
 }
 
 func (m *JSONMap) ContinueTransaction(tx *TX) *JSONMapTx {
 	return &JSONMapTx{
-		tx: tx,
+		tableName: m.tableName,
+		tx:        tx,
 	}
 }
 
@@ -99,7 +102,7 @@ func (m *JSONMap) ExtractAt(key string, path string) (string, error) {
 // The table has two columns: an string key and a json-string value
 func NewJSONMap(db *sql.DB, dialect string, tableName string) (*JSONMap, error) {
 	d := new(JSONMap)
-
+	d.tableName = tableName
 	var err error
 	var b *Bome
 	if dialect == SQLite3 {

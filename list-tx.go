@@ -3,7 +3,8 @@ package bome
 import "log"
 
 type ListTx struct {
-	tx *TX
+	tableName string
+	tx        *TX
 }
 
 func (tx *ListTx) Client() Client {
@@ -11,15 +12,15 @@ func (tx *ListTx) Client() Client {
 }
 
 func (tx *ListTx) Save(entry *ListEntry) error {
-	return tx.Client().SQLExec("insert into $table$ values (?, ?);", entry.Index, entry.Value)
+	return tx.Client().SQLExec("insert into "+tx.tableName+" values (?, ?);", entry.Index, entry.Value)
 }
 
 func (tx *ListTx) Append(entry *ListEntry) error {
-	return tx.Client().SQLExec("insert into $table$ (value) values (?);", entry.Value)
+	return tx.Client().SQLExec("insert into "+tx.tableName+" (value) values (?);", entry.Value)
 }
 
 func (tx *ListTx) GetAt(index int64) (*ListEntry, error) {
-	o, err := tx.Client().SQLQueryFirst("select * from $table$ where ind=?;", ListEntryScanner, index)
+	o, err := tx.Client().SQLQueryFirst("select * from "+tx.tableName+" where ind=?;", ListEntryScanner, index)
 	if err != nil {
 		return nil, err
 	}
@@ -27,7 +28,7 @@ func (tx *ListTx) GetAt(index int64) (*ListEntry, error) {
 }
 
 func (tx *ListTx) MinIndex() (int64, error) {
-	res, err := tx.Client().SQLQueryFirst("select min(ind) from $table$;", IntScanner)
+	res, err := tx.Client().SQLQueryFirst("select min(ind) from "+tx.tableName+";", IntScanner)
 	if err != nil {
 		return 0, err
 	}
@@ -35,7 +36,7 @@ func (tx *ListTx) MinIndex() (int64, error) {
 }
 
 func (tx *ListTx) MaxIndex() (int64, error) {
-	res, err := tx.Client().SQLQueryFirst("select max(ind) from $table$;", IntScanner)
+	res, err := tx.Client().SQLQueryFirst("select max(ind) from "+tx.tableName+";", IntScanner)
 	if err != nil {
 		return 0, err
 	}
@@ -43,7 +44,7 @@ func (tx *ListTx) MaxIndex() (int64, error) {
 }
 
 func (tx *ListTx) Count() (int64, error) {
-	res, err := tx.Client().SQLQueryFirst("select count(ind) from $table$;", IntScanner)
+	res, err := tx.Client().SQLQueryFirst("select count(ind) from "+tx.tableName+";", IntScanner)
 	if err != nil {
 		return 0, err
 	}
@@ -51,7 +52,7 @@ func (tx *ListTx) Count() (int64, error) {
 }
 
 func (tx *ListTx) Size(index int64) (int, error) {
-	o, err := tx.Client().SQLQueryFirst("select coalesce(length(value), 0) from $table$ where ind=?;", IntScanner, index)
+	o, err := tx.Client().SQLQueryFirst("select coalesce(length(value), 0) from "+tx.tableName+" where ind=?;", IntScanner, index)
 	if err != nil {
 		return 0, err
 	}
@@ -59,7 +60,7 @@ func (tx *ListTx) Size(index int64) (int, error) {
 }
 
 func (tx *ListTx) TotalSize() (int64, error) {
-	o, err := tx.Client().SQLQueryFirst("select coalesce(sum(length(value), 0) from $table$;", IntScanner)
+	o, err := tx.Client().SQLQueryFirst("select coalesce(sum(length(value), 0) from "+tx.tableName+";", IntScanner)
 	if err != nil {
 		return 0, err
 	}
@@ -67,7 +68,7 @@ func (tx *ListTx) TotalSize() (int64, error) {
 }
 
 func (tx *ListTx) GetNextFromSeq(index int64) (*ListEntry, error) {
-	o, err := tx.Client().SQLQueryFirst("select * from $table$ where ind>? order by ind;", ListEntryScanner, index)
+	o, err := tx.Client().SQLQueryFirst("select * from "+tx.tableName+" where ind>? order by ind;", ListEntryScanner, index)
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +76,7 @@ func (tx *ListTx) GetNextFromSeq(index int64) (*ListEntry, error) {
 }
 
 func (tx *ListTx) RangeFromIndex(index int64, offset, count int) ([]*ListEntry, error) {
-	c, err := tx.Client().SQLQuery("select * from $table$ where ind>? order by ind limit ?, ?;", ListEntryScanner, index, offset, count)
+	c, err := tx.Client().SQLQuery("select * from "+tx.tableName+" where ind>? order by ind limit ?, ?;", ListEntryScanner, index, offset, count)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +98,7 @@ func (tx *ListTx) RangeFromIndex(index int64, offset, count int) ([]*ListEntry, 
 }
 
 func (tx *ListTx) Range(offset, count int) ([]*ListEntry, error) {
-	c, err := tx.Client().SQLQuery("select * from $table$ order by ind limit ?, ?;", ListEntryScanner, offset, count)
+	c, err := tx.Client().SQLQuery("select * from "+tx.tableName+" order by ind limit ?, ?;", ListEntryScanner, offset, count)
 	if err != nil {
 		return nil, err
 	}
@@ -120,19 +121,19 @@ func (tx *ListTx) Range(offset, count int) ([]*ListEntry, error) {
 }
 
 func (tx *ListTx) AllBefore(index int64) (Cursor, error) {
-	return tx.Client().SQLQuery("select * from $table$ where ind<=? order by ind;", ListEntryScanner, index)
+	return tx.Client().SQLQuery("select * from "+tx.tableName+" where ind<=? order by ind;", ListEntryScanner, index)
 }
 
 func (tx *ListTx) AllAfter(index int64) (Cursor, error) {
-	return tx.Client().SQLQuery("select * from $table$ where ind>=? order by ind;", ListEntryScanner, index)
+	return tx.Client().SQLQuery("select * from "+tx.tableName+" where ind>=? order by ind;", ListEntryScanner, index)
 }
 
 func (tx *ListTx) Delete(index int64) error {
-	return tx.Client().SQLExec("delete from $table$ where ind=?;", index)
+	return tx.Client().SQLExec("delete from "+tx.tableName+" where ind=?;", index)
 }
 
 func (tx *ListTx) Clear() error {
-	return tx.Client().SQLExec("delete from $table$;")
+	return tx.Client().SQLExec("delete from " + tx.tableName + ";")
 }
 
 func (tx *ListTx) Commit() error {

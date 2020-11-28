@@ -7,6 +7,7 @@ import (
 
 type List struct {
 	*Bome
+	tableName string
 }
 
 func (l *List) BeginTransaction() (*ListTx, error) {
@@ -15,13 +16,15 @@ func (l *List) BeginTransaction() (*ListTx, error) {
 		return nil, err
 	}
 	return &ListTx{
-		tx: tx,
+		tableName: l.tableName,
+		tx:        tx,
 	}, nil
 }
 
 func (l *List) ContinueTransaction(tx *TX) *ListTx {
 	return &ListTx{
-		tx: tx,
+		tableName: l.tableName,
+		tx:        tx,
 	}
 }
 
@@ -165,6 +168,7 @@ func (l *List) Close() error {
 // NewList creates MySQL wrapped list
 func NewList(db *sql.DB, dialect string, tableName string) (*List, error) {
 	d := new(List)
+	d.tableName = tableName
 	var err error
 
 	if dialect == SQLite3 {

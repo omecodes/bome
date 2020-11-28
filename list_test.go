@@ -78,7 +78,7 @@ func TestListDB_GetAllFromSeq(t *testing.T) {
 	Convey("Get All from index 2", t, func() {
 		initList(t)
 
-		cursor, err := list.GetAllFromSeq(2)
+		cursor, err := list.AllFromSeq(2)
 		So(err, ShouldBeNil)
 		So(cursor, ShouldNotBeNil)
 

@@ -7,6 +7,7 @@ import (
 
 // DoubleMap is a double key value map manager an SQL table
 type DoubleMap struct {
+	tableName string
 	*Bome
 }
 
@@ -23,7 +24,8 @@ func (s *DoubleMap) BeginTransaction() (*DoubleMapTx, error) {
 
 func (s *DoubleMap) ContinueTransaction(tx *TX) *DoubleMapTx {
 	return &DoubleMapTx{
-		tx: tx,
+		tableName: s.tableName,
+		tx:        tx,
 	}
 }
 
@@ -196,6 +198,7 @@ func (s *DoubleMap) Close() error {
 // NewDoubleMap creates MySQL wrapped DoubleMap
 func NewDoubleMap(db *sql.DB, dialect string, tableName string) (*DoubleMap, error) {
 	d := new(DoubleMap)
+	d.tableName = tableName
 	var err error
 
 	if dialect == SQLite3 {

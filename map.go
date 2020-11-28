@@ -6,6 +6,7 @@ import (
 )
 
 type Map struct {
+	tableName string
 	*Bome
 }
 
@@ -16,13 +17,15 @@ func (d *Map) BeginTransaction() (*MapTx, error) {
 	}
 
 	return &MapTx{
-		tx: tx,
+		tableName: d.tableName,
+		tx:        tx,
 	}, nil
 }
 
 func (d *Map) ContinueTransaction(tx *TX) *MapTx {
 	return &MapTx{
-		tx: tx,
+		tableName: d.tableName,
+		tx:        tx,
 	}
 }
 

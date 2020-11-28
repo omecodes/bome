@@ -6,7 +6,8 @@ import (
 )
 
 type JSONDoubleMapTx struct {
-	tx *TX
+	tableName string
+	tx        *TX
 }
 
 func (tx *JSONDoubleMapTx) Client() Client {
@@ -14,20 +15,24 @@ func (tx *JSONDoubleMapTx) Client() Client {
 }
 
 func (tx *JSONDoubleMapTx) Contains(firstKey, secondKey string) (bool, error) {
+	query := "select 1 from " + tx.tableName + " where first_key=? and second_key=?;"
 	o, err := tx.Client().SQLQueryFirst(
-		"select 1 from $table$ where first_key=? and second_key=?;", BoolScanner, firstKey, secondKey)
+		query, BoolScanner, firstKey, secondKey)
 	return o.(bool), err
 }
 
 func (tx *JSONDoubleMapTx) Save(m *DoubleMapEntry) error {
-	if tx.Client().SQLExec("insert into $table$ values (?, ?, ?);", m.FirstKey, m.SecondKey, m.Value) != nil {
-		return tx.Client().SQLExec("update $table$ set value=? where first_key=? and second_key=?;", m.Value, m.FirstKey, m.SecondKey)
+	query := "insert into " + tx.tableName + " values (?, ?, ?);"
+	if tx.Client().SQLExec(query, m.FirstKey, m.SecondKey, m.Value) != nil {
+		query = "update " + tx.tableName + "  set value=? where first_key=? and second_key=?;"
+		return tx.Client().SQLExec(query, m.Value, m.FirstKey, m.SecondKey)
 	}
 	return nil
 }
 
 func (tx *JSONDoubleMapTx) Get(firstKey, secondKey string) (string, error) {
-	o, err := tx.Client().SQLQueryFirst("select value from $table$ where first_key=? and second_key=?;", StringScanner, firstKey, secondKey)
+	query := "select value from " + tx.tableName + " where first_key=? and second_key=?;"
+	o, err := tx.Client().SQLQueryFirst(query, StringScanner, firstKey, secondKey)
 	if err != nil {
 		return "", err
 	}
@@ -35,7 +40,8 @@ func (tx *JSONDoubleMapTx) Get(firstKey, secondKey string) (string, error) {
 }
 
 func (tx *JSONDoubleMapTx) RangeMatchingFirstKey(key string, offset, count int) ([]*MapEntry, error) {
-	c, err := tx.Client().SQLQuery("select second_key, value from $table$ where first_key=? limit ?, ?;", MapEntryScanner, key, offset, count)
+	query := "select second_key, value from " + tx.tableName + "  where first_key=? limit ?, ?;"
+	c, err := tx.Client().SQLQuery(query, MapEntryScanner, key, offset, count)
 	if err != nil {
 		return nil, err
 	}
@@ -59,7 +65,8 @@ func (tx *JSONDoubleMapTx) RangeMatchingFirstKey(key string, offset, count int) 
 }
 
 func (tx *JSONDoubleMapTx) RangeMatchingSecondKey(key string, offset, count int) ([]*MapEntry, error) {
-	c, err := tx.Client().SQLQuery("select first_key, value from $table$ where second_key=? limit ?, ?;", MapEntryScanner, key, offset, count)
+	query := "select first_key, value from " + tx.tableName + " where second_key=? limit ?, ?;"
+	c, err := tx.Client().SQLQuery(query, MapEntryScanner, key, offset, count)
 	if err != nil {
 		return nil, err
 	}
@@ -82,7 +89,8 @@ func (tx *JSONDoubleMapTx) RangeMatchingSecondKey(key string, offset, count int)
 }
 
 func (tx *JSONDoubleMapTx) Range(offset, count int) ([]*DoubleMapEntry, error) {
-	c, err := tx.Client().SQLQuery("select * from $table$ limit ?, ?;", DoubleMapEntryScanner, offset, count)
+	query := "select * from " + tx.tableName + "  limit ?, ?;"
+	c, err := tx.Client().SQLQuery(query, DoubleMapEntryScanner, offset, count)
 	if err != nil {
 		return nil, err
 	}
@@ -105,15 +113,18 @@ func (tx *JSONDoubleMapTx) Range(offset, count int) ([]*DoubleMapEntry, error) {
 }
 
 func (tx *JSONDoubleMapTx) GetForFirst(firstKey string) (Cursor, error) {
-	return tx.Client().SQLQuery("select second_key, value from $table$ where first_key=?;", MapEntryScanner, firstKey)
+	query := "select second_key, value from " + tx.tableName + " where first_key=?;"
+	return tx.Client().SQLQuery(query, MapEntryScanner, firstKey)
 }
 
 func (tx *JSONDoubleMapTx) GetForSecond(secondKey string) (Cursor, error) {
-	return tx.Client().SQLQuery("select first_key, value from $table$ where second_key=?;", MapEntryScanner, secondKey)
+	query := "select first_key, value from " + tx.tableName + " where second_key=?;"
+	return tx.Client().SQLQuery(query, MapEntryScanner, secondKey)
 }
 
 func (tx *JSONDoubleMapTx) Count() (int, error) {
-	o, err := tx.Client().SQLQueryFirst("select count(*) from $table$;", IntScanner)
+	query := "select count(*) from " + tx.tableName
+	o, err := tx.Client().SQLQueryFirst(query, IntScanner)
 	if err != nil {
 		return 0, err
 	}
@@ -121,7 +132,8 @@ func (tx *JSONDoubleMapTx) Count() (int, error) {
 }
 
 func (tx *JSONDoubleMapTx) CountForFirstKey(key string) (int, error) {
-	o, err := tx.Client().SQLQueryFirst("select count(*) from $table$ where first_key=?;", IntScanner, key)
+	query := "select count(*) from " + tx.tableName + " where first_key=?;"
+	o, err := tx.Client().SQLQueryFirst(query, IntScanner, key)
 	if err != nil {
 		return 0, err
 	}
@@ -129,7 +141,8 @@ func (tx *JSONDoubleMapTx) CountForFirstKey(key string) (int, error) {
 }
 
 func (tx *JSONDoubleMapTx) CountForSecondKey(key string) (int, error) {
-	o, err := tx.Client().SQLQueryFirst("select count(*) from $table$ where second_key=?;", IntScanner, key)
+	query := "select count(*) from " + tx.tableName + " where second_key=?;"
+	o, err := tx.Client().SQLQueryFirst(query, IntScanner, key)
 	if err != nil {
 		return 0, err
 	}
@@ -137,16 +150,8 @@ func (tx *JSONDoubleMapTx) CountForSecondKey(key string) (int, error) {
 }
 
 func (tx *JSONDoubleMapTx) Size(firstKey string, secondKey string) (int, error) {
-	contains, err := tx.Contains(firstKey, secondKey)
-	if err != nil {
-		return 0, nil
-	}
-
-	if !contains {
-		return 0, EntryNotFound
-	}
-
-	o, err := tx.Client().SQLQueryFirst("select length(value) from $table$ where first_key=? and second_key=?;", IntScanner, firstKey, secondKey)
+	query := "select coalesce(length(value), 0) from " + tx.tableName + " where first_key=? and second_key=?;"
+	o, err := tx.Client().SQLQueryFirst(query, IntScanner, firstKey, secondKey)
 	if err != nil {
 		return 0, err
 	}
@@ -154,16 +159,8 @@ func (tx *JSONDoubleMapTx) Size(firstKey string, secondKey string) (int, error) 
 }
 
 func (tx *JSONDoubleMapTx) TotalSize() (int64, error) {
-	count, err := tx.Count()
-	if err != nil {
-		return 0, nil
-	}
-
-	if count == 0 {
-		return 0, nil
-	}
-
-	o, err := tx.Client().SQLQueryFirst("select sum(length(value)) from $table$;", IntScanner)
+	query := "select coalesce(sum(length(value)), 0) from " + tx.tableName
+	o, err := tx.Client().SQLQueryFirst(query, IntScanner)
 	if err != nil {
 		return 0, err
 	}
@@ -171,27 +168,33 @@ func (tx *JSONDoubleMapTx) TotalSize() (int64, error) {
 }
 
 func (tx *JSONDoubleMapTx) GetAll() (Cursor, error) {
-	return tx.Client().SQLQuery("select * from $table$;", DoubleMapEntryScanner)
+	query := "select * from " + tx.tableName
+	return tx.Client().SQLQuery(query, DoubleMapEntryScanner)
 }
 
 func (tx *JSONDoubleMapTx) Delete(firstKey, secondKey string) error {
-	return tx.Client().SQLExec("delete from $table$ where first_key=? and second_key=?;", firstKey, secondKey)
+	query := "delete from " + tx.tableName + "  where first_key=? and second_key=?;"
+	return tx.Client().SQLExec(query, firstKey, secondKey)
 }
 
 func (tx *JSONDoubleMapTx) DeleteAllMatchingFirstKey(firstKey string) error {
-	return tx.Client().SQLExec("delete from $table$ where first_key=?;", firstKey)
+	query := "delete from " + tx.tableName + " where first_key=?;"
+	return tx.Client().SQLExec(query, firstKey)
 }
 
 func (tx *JSONDoubleMapTx) DeleteAllMatchingSecondKey(secondKey string) error {
-	return tx.Client().SQLExec("delete from $table$ where second_key=?;", secondKey)
+	query := "delete from " + tx.tableName + " where second_key=?;"
+	return tx.Client().SQLExec(query, secondKey)
 }
 
 func (tx *JSONDoubleMapTx) Clear() error {
-	return tx.Client().SQLExec("delete from $table$;")
+	query := "delete from " + tx.tableName
+	return tx.Client().SQLExec(query)
 }
 
 func (tx *JSONDoubleMapTx) EditAt(firstKey, secondKey string, path string, value string) error {
-	rawQuery := fmt.Sprintf("update $table$ set value=json_set(value, '%s', \"%s\") where first_key=? and second_key=?;",
+	rawQuery := fmt.Sprintf("update %s set value=json_set(value, '%s', \"%s\") where first_key=? and second_key=?;",
+		tx.tableName,
 		normalizedJsonPath(path),
 		value,
 	)
@@ -200,7 +203,7 @@ func (tx *JSONDoubleMapTx) EditAt(firstKey, secondKey string, path string, value
 
 func (tx *JSONDoubleMapTx) ExtractAt(firstKey, secondKey string, path string) (string, error) {
 	rawQuery := fmt.Sprintf(
-		"select json_unquote(json_extract(value, '%s')) from $table$ where first_key=? and second_key=?;", path)
+		"select json_unquote(json_extract(value, '%s')) from %s where first_key=? and second_key=?;", path, tx.tableName)
 	o, err := tx.Client().SQLQueryFirst(rawQuery, StringScanner, firstKey, secondKey)
 	if err != nil {
 		return "", err
@@ -210,7 +213,8 @@ func (tx *JSONDoubleMapTx) ExtractAt(firstKey, secondKey string, path string) (s
 
 func (tx *JSONDoubleMapTx) EditAll(path string, ex Expression) error {
 	rawQuery := fmt.Sprintf(
-		"update $table$ set value=json_set(value, '%s', %s);",
+		"update %s set value=json_set(value, '%s', %s);",
+		tx.tableName,
 		normalizedJsonPath(path),
 		ex.eval(),
 	)
@@ -219,7 +223,8 @@ func (tx *JSONDoubleMapTx) EditAll(path string, ex Expression) error {
 
 func (tx *JSONDoubleMapTx) EditAllMatching(path string, ex Expression, condition BoolExpr) error {
 	rawQuery := fmt.Sprintf(
-		"update $table$ set value=json_insert(value, '%s', %s) where %s",
+		"update %s set value=json_insert(value, '%s', %s) where %s",
+		tx.tableName,
 		normalizedJsonPath(path),
 		ex.eval(),
 		condition.sql(),
@@ -228,22 +233,25 @@ func (tx *JSONDoubleMapTx) EditAllMatching(path string, ex Expression, condition
 }
 
 func (tx *JSONDoubleMapTx) ExtractAll(path string, condition BoolExpr, scannerName string) (Cursor, error) {
-	rawQuery := fmt.Sprintf("select json_unquote(json_extract(value, '%s')) from $table$ where %s;",
+	rawQuery := fmt.Sprintf("select json_unquote(json_extract(value, '%s')) from %s where %s;",
 		path,
+		tx.tableName,
 		condition.sql(),
 	)
 	return tx.Client().SQLQuery(rawQuery, scannerName)
 }
 
 func (tx *JSONDoubleMapTx) Search(condition BoolExpr, scannerName string) (Cursor, error) {
-	rawQuery := fmt.Sprintf("select * from $table$ where %s;",
+	rawQuery := fmt.Sprintf("select * from %s where %s;",
+		tx.tableName,
 		condition.sql(),
 	)
 	return tx.Client().SQLQuery(rawQuery, scannerName)
 }
 
 func (tx *JSONDoubleMapTx) RangeOf(condition BoolExpr, scannerName string, offset, count int) (Cursor, error) {
-	rawQuery := fmt.Sprintf("select * from $table$ where %s limit ?, ?;",
+	rawQuery := fmt.Sprintf("select * from %s where %s limit ?, ?;",
+		tx.tableName,
 		condition.sql(),
 	)
 	return tx.Client().SQLQuery(rawQuery, scannerName, offset, count)

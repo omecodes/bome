@@ -9,7 +9,8 @@ type JSONDoubleMap struct {
 	*Bome
 	*DoubleMap
 	*JsonValueHolder
-	dialect string
+	tableName string
+	dialect   string
 }
 
 func (s *JSONDoubleMap) BeginTransaction() (*JSONDoubleMapTx, error) {
@@ -25,7 +26,8 @@ func (s *JSONDoubleMap) BeginTransaction() (*JSONDoubleMapTx, error) {
 
 func (s *JSONDoubleMap) ContinueTransaction(tx *TX) *JSONDoubleMapTx {
 	return &JSONDoubleMapTx{
-		tx: tx,
+		tableName: s.tableName,
+		tx:        tx,
 	}
 }
 
@@ -55,6 +57,7 @@ func (s *JSONDoubleMap) ExtractAt(firstKey, secondKey string, path string) (stri
 func NewJSONDoubleMap(db *sql.DB, dialect string, tableName string) (*JSONDoubleMap, error) {
 	d := new(JSONDoubleMap)
 	d.dialect = dialect
+	d.tableName = tableName
 
 	var err error
 	var b *Bome

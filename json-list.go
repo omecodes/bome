@@ -9,6 +9,7 @@ type JSONList struct {
 	*List
 	*JsonValueHolder
 	*Bome
+	tableName string
 }
 
 func (l *JSONList) BeginTransaction() (*JSONListTx, error) {
@@ -16,14 +17,17 @@ func (l *JSONList) BeginTransaction() (*JSONListTx, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return &JSONListTx{
-		tx: tx,
+		tableName: l.tableName,
+		tx:        tx,
 	}, nil
 }
 
 func (l *JSONList) ContinueTransaction(tx *TX) *JSONListTx {
 	return &JSONListTx{
-		tx: tx,
+		tableName: l.tableName,
+		tx:        tx,
 	}
 }
 
@@ -52,6 +56,7 @@ func (l *JSONList) ExtractAt(index int64, path string) (string, error) {
 func NewJSONList(db *sql.DB, dialect string, tableName string) (*JSONList, error) {
 	d := new(JSONList)
 	d.List = new(List)
+	d.tableName = tableName
 
 	var err error
 	var b *Bome
