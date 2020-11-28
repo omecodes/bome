@@ -53,12 +53,12 @@ func (tx *JSONListTx) Count() (int64, error) {
 	return res.(int64), nil
 }
 
-func (tx *JSONListTx) Size(index int64) (int, error) {
+func (tx *JSONListTx) Size(index int64) (int64, error) {
 	o, err := tx.Client().SQLQueryFirst("select coalesce(length(value), 0) from $table$ where ind=?;", IntScanner, index)
 	if err != nil {
 		return 0, err
 	}
-	return o.(int), nil
+	return o.(int64), nil
 }
 
 func (tx *JSONListTx) TotalSize() (int64, error) {

@@ -47,12 +47,12 @@ func (d *Map) Get(key string) (string, error) {
 	return o.(string), nil
 }
 
-func (d *Map) Size(key string) (int, error) {
+func (d *Map) Size(key string) (int64, error) {
 	o, err := d.Client().SQLQueryFirst("select coalesce(length(value), 0) from $table$ where name=?;", IntScanner, key)
 	if err != nil {
 		return 0, err
 	}
-	return o.(int), nil
+	return o.(int64), nil
 }
 
 func (d *Map) TotalSize() (int64, error) {

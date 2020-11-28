@@ -39,12 +39,12 @@ func (tx *DoubleMapTx) CountForSecondKey(key string) (int, error) {
 	return o.(int), nil
 }
 
-func (tx *DoubleMapTx) Size(firstKey string, secondKey string) (int, error) {
+func (tx *DoubleMapTx) Size(firstKey string, secondKey string) (int64, error) {
 	o, err := tx.Client().SQLQueryFirst("select coalesce(length(value), 0) from $table$ where first_key=? and second_key=?;", IntScanner, firstKey, secondKey)
 	if err != nil {
 		return 0, err
 	}
-	return o.(int), nil
+	return o.(int64), nil
 }
 
 func (tx *DoubleMapTx) TotalSize() (int64, error) {

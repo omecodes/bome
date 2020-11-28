@@ -37,12 +37,12 @@ func (tx *MapTx) Contains(key string) (bool, error) {
 	return res.(bool), nil
 }
 
-func (tx *MapTx) Size(key string) (int, error) {
+func (tx *MapTx) Size(key string) (int64, error) {
 	o, err := tx.Client().SQLQueryFirst("select coalesce(length(value), 0) from $table$ where name=?;", IntScanner, key)
 	if err != nil {
 		return 0, err
 	}
-	return o.(int), nil
+	return o.(int64), nil
 }
 
 func (tx *MapTx) TotalSize() (int64, error) {

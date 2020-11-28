@@ -48,12 +48,12 @@ func (s *JsonValueHolder) Count() (int, error) {
 	return o.(int), nil
 }
 
-func (s *JsonValueHolder) Size(condition BoolExpr) (int, error) {
+func (s *JsonValueHolder) Size(condition BoolExpr) (int64, error) {
 	o, err := s.Client().SQLQueryFirst("select length(value) from $table$ where %s;", IntScanner, condition.sql())
 	if err != nil {
 		return 0, err
 	}
-	return o.(int), nil
+	return o.(int64), nil
 }
 
 func (s *JsonValueHolder) TotalSize() (int64, error) {

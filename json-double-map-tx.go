@@ -136,7 +136,7 @@ func (tx *JSONDoubleMapTx) CountForSecondKey(key string) (int, error) {
 	return o.(int), nil
 }
 
-func (tx *JSONDoubleMapTx) Size(firstKey string, secondKey string) (int, error) {
+func (tx *JSONDoubleMapTx) Size(firstKey string, secondKey string) (int64, error) {
 	contains, err := tx.Contains(firstKey, secondKey)
 	if err != nil {
 		return 0, nil
@@ -146,24 +146,15 @@ func (tx *JSONDoubleMapTx) Size(firstKey string, secondKey string) (int, error) 
 		return 0, EntryNotFound
 	}
 
-	o, err := tx.Client().SQLQueryFirst("select length(value) from $table$ where first_key=? and second_key=?;", IntScanner, firstKey, secondKey)
+	o, err := tx.Client().SQLQueryFirst("select coalesce(length(value), 0) from $table$ where first_key=? and second_key=?;", IntScanner, firstKey, secondKey)
 	if err != nil {
 		return 0, err
 	}
-	return o.(int), nil
+	return o.(int64), nil
 }
 
 func (tx *JSONDoubleMapTx) TotalSize() (int64, error) {
-	count, err := tx.Count()
-	if err != nil {
-		return 0, nil
-	}
-
-	if count == 0 {
-		return 0, nil
-	}
-
-	o, err := tx.Client().SQLQueryFirst("select sum(length(value)) from $table$;", IntScanner)
+	o, err := tx.Client().SQLQueryFirst("select coalesce(sum(length(value)), 0) from $table$;", IntScanner)
 	if err != nil {
 		return 0, err
 	}

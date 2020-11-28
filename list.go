@@ -70,12 +70,12 @@ func (l *List) Count() (int64, error) {
 	return res.(int64), nil
 }
 
-func (l *List) Size(index int64) (int, error) {
+func (l *List) Size(index int64) (int64, error) {
 	o, err := l.Client().SQLQueryFirst("select coalesce(length(value), 0) from $table$ where ind=?;", IntScanner, index)
 	if err != nil {
 		return 0, err
 	}
-	return o.(int), nil
+	return o.(int64), nil
 }
 
 func (l *List) TotalSize() (int64, error) {

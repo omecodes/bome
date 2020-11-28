@@ -41,12 +41,12 @@ func (tx *JSONMapTx) Contains(key string) (bool, error) {
 	return res.(bool), nil
 }
 
-func (tx *JSONMapTx) Size(key string) (int, error) {
+func (tx *JSONMapTx) Size(key string) (int64, error) {
 	o, err := tx.Client().SQLQueryFirst("select coalesce(length(value), 0) from $table$ where name=?;", IntScanner, key)
 	if err != nil {
 		return 0, err
 	}
-	return o.(int), nil
+	return o.(int64), nil
 }
 
 func (tx *JSONMapTx) TotalSize() (int64, error) {
