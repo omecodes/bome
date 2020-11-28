@@ -24,8 +24,7 @@ func (s *DoubleMap) BeginTransaction() (*DoubleMapTx, error) {
 
 func (s *DoubleMap) ContinueTransaction(tx *TX) *DoubleMapTx {
 	return &DoubleMapTx{
-		tableName: s.tableName,
-		tx:        tx,
+		tx: tx.clone(s.Bome),
 	}
 }
 

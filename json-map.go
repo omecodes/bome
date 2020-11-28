@@ -17,15 +17,13 @@ func (m *JSONMap) BeginTransaction() (*JSONMapTx, error) {
 		return nil, err
 	}
 	return &JSONMapTx{
-		tableName: m.tableName,
-		tx:        tx,
+		tx: tx.clone(m.Bome),
 	}, nil
 }
 
 func (m *JSONMap) ContinueTransaction(tx *TX) *JSONMapTx {
 	return &JSONMapTx{
-		tableName: m.tableName,
-		tx:        tx,
+		tx: tx.clone(m.Bome),
 	}
 }
 

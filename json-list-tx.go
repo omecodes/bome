@@ -6,8 +6,7 @@ import (
 )
 
 type JSONListTx struct {
-	tableName string
-	tx        *TX
+	tx *TX
 }
 
 func (tx *JSONListTx) Client() Client {
@@ -15,15 +14,15 @@ func (tx *JSONListTx) Client() Client {
 }
 
 func (tx *JSONListTx) Save(entry *ListEntry) error {
-	return tx.Client().SQLExec("insert into "+tx.tableName+" values (?, ?);", entry.Index, entry.Value)
+	return tx.Client().SQLExec("insert into $table$ values (?, ?);", entry.Index, entry.Value)
 }
 
 func (tx *JSONListTx) Append(entry *ListEntry) error {
-	return tx.Client().SQLExec("insert into "+tx.tableName+" (value) values (?);", entry.Value)
+	return tx.Client().SQLExec("insert into $table$ (value) values (?);", entry.Value)
 }
 
 func (tx *JSONListTx) GetAt(index int64) (*ListEntry, error) {
-	o, err := tx.Client().SQLQueryFirst("select * from "+tx.tableName+" where ind=?;", ListEntryScanner, index)
+	o, err := tx.Client().SQLQueryFirst("select * from $table$ where ind=?;", ListEntryScanner, index)
 	if err != nil {
 		return nil, err
 	}
@@ -31,7 +30,7 @@ func (tx *JSONListTx) GetAt(index int64) (*ListEntry, error) {
 }
 
 func (tx *JSONListTx) MinIndex() (int64, error) {
-	res, err := tx.Client().SQLQueryFirst("select min(ind) from "+tx.tableName+";", IntScanner)
+	res, err := tx.Client().SQLQueryFirst("select min(ind) from $table$;", IntScanner)
 	if err != nil {
 		return 0, err
 	}
@@ -39,7 +38,7 @@ func (tx *JSONListTx) MinIndex() (int64, error) {
 }
 
 func (tx *JSONListTx) MaxIndex() (int64, error) {
-	res, err := tx.Client().SQLQueryFirst("select max(ind) from "+tx.tableName+";", IntScanner)
+	res, err := tx.Client().SQLQueryFirst("select max(ind) from $table$;", IntScanner)
 	if err != nil {
 		return 0, err
 	}
@@ -47,7 +46,7 @@ func (tx *JSONListTx) MaxIndex() (int64, error) {
 }
 
 func (tx *JSONListTx) Count() (int64, error) {
-	res, err := tx.Client().SQLQueryFirst("select count(ind) from "+tx.tableName+";", IntScanner)
+	res, err := tx.Client().SQLQueryFirst("select count(ind) from $table$;", IntScanner)
 	if err != nil {
 		return 0, err
 	}
@@ -55,7 +54,7 @@ func (tx *JSONListTx) Count() (int64, error) {
 }
 
 func (tx *JSONListTx) Size(index int64) (int, error) {
-	o, err := tx.Client().SQLQueryFirst("select coalesce(length(value), 0) from "+tx.tableName+" where ind=?;", IntScanner, index)
+	o, err := tx.Client().SQLQueryFirst("select coalesce(length(value), 0) from $table$ where ind=?;", IntScanner, index)
 	if err != nil {
 		return 0, err
 	}
@@ -63,7 +62,7 @@ func (tx *JSONListTx) Size(index int64) (int, error) {
 }
 
 func (tx *JSONListTx) TotalSize() (int64, error) {
-	o, err := tx.Client().SQLQueryFirst("select coalesce(sum(length(value), 0) from "+tx.tableName+";", IntScanner)
+	o, err := tx.Client().SQLQueryFirst("select coalesce(sum(length(value), 0) from $table$;", IntScanner)
 	if err != nil {
 		return 0, err
 	}
@@ -71,7 +70,7 @@ func (tx *JSONListTx) TotalSize() (int64, error) {
 }
 
 func (tx *JSONListTx) GetNextFromSeq(index int64) (*ListEntry, error) {
-	o, err := tx.Client().SQLQueryFirst("select * from "+tx.tableName+" where ind>? order by ind;", ListEntryScanner, index)
+	o, err := tx.Client().SQLQueryFirst("select * from $table$ where ind>? order by ind;", ListEntryScanner, index)
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +78,7 @@ func (tx *JSONListTx) GetNextFromSeq(index int64) (*ListEntry, error) {
 }
 
 func (tx *JSONListTx) RangeFromIndex(index int64, offset, count int) ([]*ListEntry, error) {
-	c, err := tx.Client().SQLQuery("select * from "+tx.tableName+" where ind>? order by ind limit ?, ?;", ListEntryScanner, index, offset, count)
+	c, err := tx.Client().SQLQuery("select * from $table$ where ind>? order by ind limit ?, ?;", ListEntryScanner, index, offset, count)
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +100,7 @@ func (tx *JSONListTx) RangeFromIndex(index int64, offset, count int) ([]*ListEnt
 }
 
 func (tx *JSONListTx) Range(offset, count int) ([]*ListEntry, error) {
-	c, err := tx.Client().SQLQuery("select * from "+tx.tableName+" order by ind limit ?, ?;", ListEntryScanner, offset, count)
+	c, err := tx.Client().SQLQuery("select * from $table$ order by ind limit ?, ?;", ListEntryScanner, offset, count)
 	if err != nil {
 		return nil, err
 	}
@@ -124,30 +123,30 @@ func (tx *JSONListTx) Range(offset, count int) ([]*ListEntry, error) {
 }
 
 func (tx *JSONListTx) AllBefore(index int64) (Cursor, error) {
-	return tx.Client().SQLQuery("select * from "+tx.tableName+" where ind<=? order by ind;", ListEntryScanner, index)
+	return tx.Client().SQLQuery("select * from $table$ where ind<=? order by ind;", ListEntryScanner, index)
 }
 
 func (tx *JSONListTx) AllAfter(index int64) (Cursor, error) {
-	return tx.Client().SQLQuery("select * from "+tx.tableName+" where ind>=? order by ind;", ListEntryScanner, index)
+	return tx.Client().SQLQuery("select * from $table$ where ind>=? order by ind;", ListEntryScanner, index)
 }
 
 func (tx *JSONListTx) Delete(index int64) error {
-	return tx.Client().SQLExec("delete from "+tx.tableName+" where ind=?;", index)
+	return tx.Client().SQLExec("delete from $table$ where ind=?;", index)
 }
 
 func (tx *JSONListTx) Clear() error {
-	return tx.Client().SQLExec("delete from " + tx.tableName + ";")
+	return tx.Client().SQLExec("delete from $table$;")
 }
 
 func (tx *JSONListTx) EditAt(index int64, path string, sqlValue string) error {
 	rawQuery := fmt.Sprintf(
-		"update "+tx.tableName+" set value=json_set(value, '%s', %s) where ind=?;", path, sqlValue)
+		"update $table$ set value=json_set(value, '%s', %s) where ind=?;", path, sqlValue)
 	return tx.Client().SQLExec(rawQuery, index)
 }
 
 func (tx *JSONListTx) ExtractAt(index int64, path string) (string, error) {
 	rawQuery := fmt.Sprintf(
-		"select json_unquote(json_extract(value, '%s')) from "+tx.tableName+" where ind=?;", path)
+		"select json_unquote(json_extract(value, '%s')) from $table$ where ind=?;", path)
 	o, err := tx.Client().SQLQueryFirst(rawQuery, StringScanner, index)
 	if err != nil {
 		return "", err
@@ -157,7 +156,7 @@ func (tx *JSONListTx) ExtractAt(index int64, path string) (string, error) {
 
 func (tx *JSONListTx) EditAll(path string, ex Expression) error {
 	rawQuery := fmt.Sprintf(
-		"update "+tx.tableName+" set value=json_set(value, '%s', %s);",
+		"update $table$ set value=json_set(value, '%s', %s);",
 		normalizedJsonPath(path),
 		ex.eval(),
 	)
@@ -166,7 +165,7 @@ func (tx *JSONListTx) EditAll(path string, ex Expression) error {
 
 func (tx *JSONListTx) EditAllMatching(path string, ex Expression, condition BoolExpr) error {
 	rawQuery := fmt.Sprintf(
-		"update "+tx.tableName+" set value=json_insert(value, '%s', %s) where %s",
+		"update $table$ set value=json_insert(value, '%s', %s) where %s",
 		normalizedJsonPath(path),
 		ex.eval(),
 		condition.sql(),
@@ -175,7 +174,7 @@ func (tx *JSONListTx) EditAllMatching(path string, ex Expression, condition Bool
 }
 
 func (tx *JSONListTx) ExtractAll(path string, condition BoolExpr, scannerName string) (Cursor, error) {
-	rawQuery := fmt.Sprintf("select json_unquote(json_extract(value, '%s')) from "+tx.tableName+" where %s;",
+	rawQuery := fmt.Sprintf("select json_unquote(json_extract(value, '%s')) from $table$ where %s;",
 		path,
 		condition.sql(),
 	)
@@ -183,14 +182,14 @@ func (tx *JSONListTx) ExtractAll(path string, condition BoolExpr, scannerName st
 }
 
 func (tx *JSONListTx) Search(condition BoolExpr, scannerName string) (Cursor, error) {
-	rawQuery := fmt.Sprintf("select * from "+tx.tableName+" where %s;",
+	rawQuery := fmt.Sprintf("select * from $table$ where %s;",
 		condition.sql(),
 	)
 	return tx.Client().SQLQuery(rawQuery, scannerName)
 }
 
 func (tx *JSONListTx) RangeOf(condition BoolExpr, scannerName string, offset, count int) (Cursor, error) {
-	rawQuery := fmt.Sprintf("select * from "+tx.tableName+" where %s limit ?, ?;",
+	rawQuery := fmt.Sprintf("select * from $table$ where %s limit ?, ?;",
 		condition.sql(),
 	)
 	return tx.Client().SQLQuery(rawQuery, scannerName, offset, count)

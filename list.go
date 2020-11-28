@@ -16,15 +16,13 @@ func (l *List) BeginTransaction() (*ListTx, error) {
 		return nil, err
 	}
 	return &ListTx{
-		tableName: l.tableName,
-		tx:        tx,
+		tx: tx.clone(l.Bome),
 	}, nil
 }
 
 func (l *List) ContinueTransaction(tx *TX) *ListTx {
 	return &ListTx{
-		tableName: l.tableName,
-		tx:        tx,
+		tx: tx.clone(l.Bome),
 	}
 }
 

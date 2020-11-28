@@ -17,15 +17,13 @@ func (d *Map) BeginTransaction() (*MapTx, error) {
 	}
 
 	return &MapTx{
-		tableName: d.tableName,
-		tx:        tx,
+		tx: tx.clone(d.Bome),
 	}, nil
 }
 
 func (d *Map) ContinueTransaction(tx *TX) *MapTx {
 	return &MapTx{
-		tableName: d.tableName,
-		tx:        tx,
+		tx: tx.clone(d.Bome),
 	}
 }
 

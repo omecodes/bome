@@ -20,14 +20,13 @@ func (s *JSONDoubleMap) BeginTransaction() (*JSONDoubleMapTx, error) {
 	}
 
 	return &JSONDoubleMapTx{
-		tx: tx,
+		tx: tx.clone(s.Bome),
 	}, nil
 }
 
 func (s *JSONDoubleMap) ContinueTransaction(tx *TX) *JSONDoubleMapTx {
 	return &JSONDoubleMapTx{
-		tableName: s.tableName,
-		tx:        tx,
+		tx: tx.clone(s.Bome),
 	}
 }
 

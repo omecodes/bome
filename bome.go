@@ -266,7 +266,7 @@ func (bome *Bome) BeginTx() (*TX, error) {
 
 	tr := &TX{}
 	tr.Tx = tx
-	tr.dbome = bome
+	tr.bome = bome
 	return tr, nil
 }
 

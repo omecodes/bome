@@ -5,21 +5,22 @@ import (
 	"strings"
 )
 
-type transaction interface {
-	Commit() error
-	Rollback() error
-	TX() *TX
-}
-
 // TX is a transaction token
 type TX struct {
-	dbome *Bome
+	bome *Bome
 	*sql.Tx
+}
+
+func (tx *TX) clone(bome *Bome) *TX {
+	return &TX{
+		bome: bome,
+		Tx:   tx.Tx,
+	}
 }
 
 //SExec executes the statement saved as name
 func (tx *TX) SQLExec(query string, args ...interface{}) error {
-	for name, value := range tx.dbome.vars {
+	for name, value := range tx.bome.vars {
 		query = strings.Replace(query, name, value, -1)
 	}
 	_, err := tx.Exec(query, args...)
@@ -28,14 +29,14 @@ func (tx *TX) SQLExec(query string, args ...interface{}) error {
 
 //SQuery executes the query statement saved as name
 func (tx *TX) SQLQuery(query string, scannerName string, args ...interface{}) (Cursor, error) {
-	for name, value := range tx.dbome.vars {
+	for name, value := range tx.bome.vars {
 		query = strings.Replace(query, name, value, -1)
 	}
 	rows, err := tx.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
-	scanner, err := tx.dbome.findScanner(scannerName)
+	scanner, err := tx.bome.findScanner(scannerName)
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +45,7 @@ func (tx *TX) SQLQuery(query string, scannerName string, args ...interface{}) (C
 
 // SQueryFirst get the first result of the query statement saved as name
 func (tx *TX) SQLQueryFirst(query string, scannerName string, args ...interface{}) (interface{}, error) {
-	for name, value := range tx.dbome.vars {
+	for name, value := range tx.bome.vars {
 		query = strings.Replace(query, name, value, -1)
 	}
 
@@ -52,7 +53,7 @@ func (tx *TX) SQLQueryFirst(query string, scannerName string, args ...interface{
 	if err != nil {
 		return nil, err
 	}
-	scanner, err := tx.dbome.findScanner(scannerName)
+	scanner, err := tx.bome.findScanner(scannerName)
 	if err != nil {
 		return nil, err
 	}

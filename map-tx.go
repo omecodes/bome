@@ -3,8 +3,7 @@ package bome
 import "log"
 
 type MapTx struct {
-	tableName string
-	tx        *TX
+	tx *TX
 }
 
 func (tx *MapTx) Client() Client {
@@ -12,15 +11,15 @@ func (tx *MapTx) Client() Client {
 }
 
 func (tx *MapTx) Save(entry *MapEntry) error {
-	err := tx.Client().SQLExec("insert into "+tx.tableName+" values (?, ?);", entry.Key, entry.Value)
+	err := tx.Client().SQLExec("insert into $table$ values (?, ?);", entry.Key, entry.Value)
 	if err != nil {
-		err = tx.Client().SQLExec("update "+tx.tableName+" set value=? where name=?;", entry.Value, entry.Key)
+		err = tx.Client().SQLExec("update $table$ set value=? where name=?;", entry.Value, entry.Key)
 	}
 	return err
 }
 
 func (tx *MapTx) Get(key string) (string, error) {
-	o, err := tx.Client().SQLQueryFirst("select value from "+tx.tableName+" where name=?;", StringScanner, key)
+	o, err := tx.Client().SQLQueryFirst("select value from $table$ where name=?;", StringScanner, key)
 	if err != nil {
 		return "", err
 	}
@@ -28,7 +27,7 @@ func (tx *MapTx) Get(key string) (string, error) {
 }
 
 func (tx *MapTx) Contains(key string) (bool, error) {
-	res, err := tx.Client().SQLQueryFirst("select 1 from "+tx.tableName+" where name=?;", BoolScanner, key)
+	res, err := tx.Client().SQLQueryFirst("select 1 from $table$ where name=?;", BoolScanner, key)
 	if err != nil {
 		if IsNotFound(err) {
 			return false, nil
@@ -39,7 +38,7 @@ func (tx *MapTx) Contains(key string) (bool, error) {
 }
 
 func (tx *MapTx) Size(key string) (int, error) {
-	o, err := tx.Client().SQLQueryFirst("select coalesce(length(value), 0) from "+tx.tableName+" where name=?;", IntScanner, key)
+	o, err := tx.Client().SQLQueryFirst("select coalesce(length(value), 0) from $table$ where name=?;", IntScanner, key)
 	if err != nil {
 		return 0, err
 	}
@@ -47,7 +46,7 @@ func (tx *MapTx) Size(key string) (int, error) {
 }
 
 func (tx *MapTx) TotalSize() (int64, error) {
-	o, err := tx.Client().SQLQueryFirst("select coalesce(sum(length(value), 0) from "+tx.tableName+";", IntScanner)
+	o, err := tx.Client().SQLQueryFirst("select coalesce(sum(length(value), 0) from $table$;", IntScanner)
 	if err != nil {
 		return 0, err
 	}
@@ -55,7 +54,7 @@ func (tx *MapTx) TotalSize() (int64, error) {
 }
 
 func (tx *MapTx) Range(offset, count int) ([]*MapEntry, error) {
-	c, err := tx.Client().SQLQuery("select * from "+tx.tableName+" limit ?, ?;", MapEntryScanner, offset, count)
+	c, err := tx.Client().SQLQuery("select * from $table$ limit ?, ?;", MapEntryScanner, offset, count)
 	if err != nil {
 		return nil, err
 	}
@@ -77,15 +76,15 @@ func (tx *MapTx) Range(offset, count int) ([]*MapEntry, error) {
 }
 
 func (tx *MapTx) Delete(key string) error {
-	return tx.Client().SQLExec("delete from "+tx.tableName+" where name=?;", key)
+	return tx.Client().SQLExec("delete from $table$ where name=?;", key)
 }
 
 func (tx *MapTx) List() (Cursor, error) {
-	return tx.Client().SQLQuery("select * from "+tx.tableName+";", MapEntryScanner)
+	return tx.Client().SQLQuery("select * from $table$;", MapEntryScanner)
 }
 
 func (tx *MapTx) Clear() error {
-	return tx.Client().SQLExec("delete from " + tx.tableName + ";")
+	return tx.Client().SQLExec("delete from $table$;")
 }
 
 func (tx *MapTx) Commit() error {
