@@ -2,7 +2,6 @@ package bome
 
 import (
 	"database/sql"
-	"errors"
 )
 
 type transaction interface {
@@ -18,23 +17,14 @@ type TX struct {
 }
 
 //SExec executes the statement saved as name
-func (tx *TX) SQLExec(name string, args ...interface{}) error {
-	stmt, found := tx.dbome.registeredStatements[name]
-	if !found {
-		return errors.New("no statement found")
-	}
-	_, err := tx.Exec(stmt, args...)
+func (tx *TX) SQLExec(query string, args ...interface{}) error {
+	_, err := tx.Exec(query, args...)
 	return err
 }
 
 //SQuery executes the query statement saved as name
-func (tx *TX) SQLQuery(name string, scannerName string, args ...interface{}) (Cursor, error) {
-	stmt, found := tx.dbome.registeredStatements[name]
-	if !found {
-		return nil, errors.New("no statement found")
-	}
-
-	rows, err := tx.Query(stmt, args...)
+func (tx *TX) SQLQuery(query string, scannerName string, args ...interface{}) (Cursor, error) {
+	rows, err := tx.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -46,13 +36,8 @@ func (tx *TX) SQLQuery(name string, scannerName string, args ...interface{}) (Cu
 }
 
 // SQueryFirst get the first result of the query statement saved as name
-func (tx *TX) SQLQueryFirst(name string, scannerName string, args ...interface{}) (interface{}, error) {
-	stmt, found := tx.dbome.registeredStatements[name]
-	if !found {
-		return nil, errors.New("no statement found")
-	}
-
-	rows, err := tx.Query(stmt, args...)
+func (tx *TX) SQLQueryFirst(query string, scannerName string, args ...interface{}) (interface{}, error) {
+	rows, err := tx.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
