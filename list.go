@@ -1,6 +1,7 @@
 package bome
 
 import (
+	"context"
 	"database/sql"
 	"log"
 )
@@ -10,13 +11,33 @@ type List struct {
 	tableName string
 }
 
+func (l *List) Transaction(ctx context.Context) (context.Context, *ListTx, error) {
+	tx := transaction(ctx)
+	if tx == nil {
+		tx, err := l.Bome.BeginTx()
+		if err != nil {
+			return ctx, nil, err
+		}
+
+		newCtx := contextWithTransaction(ctx, tx)
+		return newCtx, &ListTx{
+			tx: tx,
+		}, nil
+	}
+
+	return ctx, &ListTx{
+		tx: tx.clone(l.Bome),
+	}, nil
+}
+
 func (l *List) BeginTransaction() (*ListTx, error) {
 	tx, err := l.BeginTx()
 	if err != nil {
 		return nil, err
 	}
+
 	return &ListTx{
-		tx: tx.clone(l.Bome),
+		tx: tx,
 	}, nil
 }
 

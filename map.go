@@ -1,6 +1,7 @@
 package bome
 
 import (
+	"context"
 	"database/sql"
 	"log"
 )
@@ -10,6 +11,25 @@ type Map struct {
 	*Bome
 }
 
+func (d *Map) Transaction(ctx context.Context) (context.Context, *MapTx, error) {
+	tx := transaction(ctx)
+	if tx == nil {
+		tx, err := d.Bome.BeginTx()
+		if err != nil {
+			return ctx, nil, err
+		}
+
+		newCtx := contextWithTransaction(ctx, tx)
+		return newCtx, &MapTx{
+			tx: tx,
+		}, nil
+	}
+
+	return ctx, &MapTx{
+		tx: tx.clone(d.Bome),
+	}, nil
+}
+
 func (d *Map) BeginTransaction() (*MapTx, error) {
 	tx, err := d.BeginTx()
 	if err != nil {
@@ -17,7 +37,7 @@ func (d *Map) BeginTransaction() (*MapTx, error) {
 	}
 
 	return &MapTx{
-		tx: tx.clone(d.Bome),
+		tx: tx,
 	}, nil
 }
 

@@ -1,6 +1,7 @@
 package bome
 
 import (
+	"context"
 	"fmt"
 	"strings"
 )
@@ -15,6 +16,27 @@ func NewJsonValueHolder(field string, db *Bome) *JsonValueHolder {
 type JsonValueHolder struct {
 	field string
 	*Bome
+}
+
+func (s *JsonValueHolder) Transaction(ctx context.Context) (context.Context, *JsonValueHolderTx, error) {
+	tx := transaction(ctx)
+	if tx == nil {
+		tx, err := s.Bome.BeginTx()
+		if err != nil {
+			return ctx, nil, err
+		}
+
+		newCtx := contextWithTransaction(ctx, tx)
+		return newCtx, &JsonValueHolderTx{
+			field: s.field,
+			tx:    tx,
+		}, nil
+	}
+
+	return ctx, &JsonValueHolderTx{
+		field: s.field,
+		tx:    tx.clone(s.Bome),
+	}, nil
 }
 
 func (s *JsonValueHolder) BeginTransaction() (*JsonValueHolderTx, error) {
@@ -32,7 +54,7 @@ func (s *JsonValueHolder) BeginTransaction() (*JsonValueHolderTx, error) {
 func (s *JsonValueHolder) ContinueTransaction(tx *TX) *JsonValueHolderTx {
 	return &JsonValueHolderTx{
 		field: s.field,
-		tx:    tx,
+		tx:    tx.clone(s.Bome),
 	}
 }
 

@@ -9,7 +9,12 @@ var DialectNotSupported = errors.New("bome: unsupported dialect")
 var StatementNotFound = errors.New("statement not found")
 var ScannerNotFound = errors.New("scanner not found")
 var EntryNotFound = errors.New("not found")
+var TransactionNotFound = errors.New("not found")
 
 func IsNotFound(err error) bool {
-	return err.Error() == EntryNotFound.Error()
+	return errors.Is(err, EntryNotFound)
+}
+
+func IsTransactionNotFound(err error) bool {
+	return errors.Is(err, TransactionNotFound)
 }

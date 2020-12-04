@@ -6,7 +6,8 @@ import (
 )
 
 type JSONListTx struct {
-	tx *TX
+	tableName string
+	tx        *TX
 }
 
 func (tx *JSONListTx) Client() Client {

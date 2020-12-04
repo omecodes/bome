@@ -1,6 +1,7 @@
 package bome
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 )
@@ -11,13 +12,33 @@ type JSONMap struct {
 	tableName string
 }
 
+func (m *JSONMap) Transaction(ctx context.Context) (context.Context, *JSONMapTx, error) {
+	tx := transaction(ctx)
+	if tx == nil {
+		tx, err := m.Bome.BeginTx()
+		if err != nil {
+			return ctx, nil, err
+		}
+
+		newCtx := contextWithTransaction(ctx, tx)
+		return newCtx, &JSONMapTx{
+			tx: tx,
+		}, nil
+	}
+
+	return ctx, &JSONMapTx{
+		tx: tx.clone(m.Bome),
+	}, nil
+}
+
 func (m *JSONMap) BeginTransaction() (*JSONMapTx, error) {
 	tx, err := m.BeginTx()
 	if err != nil {
 		return nil, err
 	}
+
 	return &JSONMapTx{
-		tx: tx.clone(m.Bome),
+		tx: tx,
 	}, nil
 }
 

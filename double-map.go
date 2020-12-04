@@ -1,6 +1,7 @@
 package bome
 
 import (
+	"context"
 	"database/sql"
 	"log"
 )
@@ -9,6 +10,26 @@ import (
 type DoubleMap struct {
 	tableName string
 	*Bome
+}
+
+func (s *DoubleMap) Transaction(ctx context.Context) (context.Context, *DoubleMapTx, error) {
+	tx := transaction(ctx)
+	if tx == nil {
+		tx, err := s.Bome.BeginTx()
+		if err != nil {
+			return ctx, nil, err
+		}
+
+		newCtx := contextWithTransaction(ctx, tx)
+		return newCtx, &DoubleMapTx{
+			tableName: s.tableName,
+			tx:        tx,
+		}, nil
+	}
+
+	return ctx, &DoubleMapTx{
+		tx: tx.clone(s.Bome),
+	}, nil
 }
 
 func (s *DoubleMap) BeginTransaction() (*DoubleMapTx, error) {

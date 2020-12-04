@@ -3,7 +3,8 @@ package bome
 import "log"
 
 type DoubleMapTx struct {
-	tx *TX
+	tableName string
+	tx        *TX
 }
 
 func (tx *DoubleMapTx) Client() Client {

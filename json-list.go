@@ -1,6 +1,7 @@
 package bome
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 )
@@ -12,6 +13,26 @@ type JSONList struct {
 	tableName string
 }
 
+func (l *JSONList) Transaction(ctx context.Context) (context.Context, *JSONListTx, error) {
+	tx := transaction(ctx)
+	if tx == nil {
+		tx, err := l.Bome.BeginTx()
+		if err != nil {
+			return ctx, nil, err
+		}
+
+		newCtx := contextWithTransaction(ctx, tx)
+		return newCtx, &JSONListTx{
+			tableName: l.tableName,
+			tx:        tx,
+		}, nil
+	}
+
+	return ctx, &JSONListTx{
+		tx: tx.clone(l.Bome),
+	}, nil
+}
+
 func (l *JSONList) BeginTransaction() (*JSONListTx, error) {
 	tx, err := l.BeginTx()
 	if err != nil {
@@ -19,7 +40,7 @@ func (l *JSONList) BeginTransaction() (*JSONListTx, error) {
 	}
 
 	return &JSONListTx{
-		tx: tx.clone(l.Bome),
+		tx: tx,
 	}, nil
 }
 

@@ -1,6 +1,7 @@
 package bome
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 )
@@ -13,6 +14,25 @@ type JSONDoubleMap struct {
 	dialect   string
 }
 
+func (s *JSONDoubleMap) Transaction(ctx context.Context) (context.Context, *JSONDoubleMapTx, error) {
+	tx := transaction(ctx)
+	if tx == nil {
+		tx, err := s.Bome.BeginTx()
+		if err != nil {
+			return ctx, nil, err
+		}
+
+		newCtx := contextWithTransaction(ctx, tx)
+		return newCtx, &JSONDoubleMapTx{
+			tx: tx,
+		}, nil
+	}
+
+	return ctx, &JSONDoubleMapTx{
+		tx: tx.clone(s.Bome),
+	}, nil
+}
+
 func (s *JSONDoubleMap) BeginTransaction() (*JSONDoubleMapTx, error) {
 	tx, err := s.Bome.BeginTx()
 	if err != nil {
@@ -20,7 +40,7 @@ func (s *JSONDoubleMap) BeginTransaction() (*JSONDoubleMapTx, error) {
 	}
 
 	return &JSONDoubleMapTx{
-		tx: tx.clone(s.Bome),
+		tx: tx,
 	}, nil
 }
 
