@@ -137,15 +137,6 @@ func (tx *JSONDoubleMapTx) CountForSecondKey(key string) (int, error) {
 }
 
 func (tx *JSONDoubleMapTx) Size(firstKey string, secondKey string) (int64, error) {
-	contains, err := tx.Contains(firstKey, secondKey)
-	if err != nil {
-		return 0, nil
-	}
-
-	if !contains {
-		return 0, EntryNotFound
-	}
-
 	o, err := tx.Client().SQLQueryFirst("select coalesce(length(value), 0) from $table$ where first_key=? and second_key=?;", IntScanner, firstKey, secondKey)
 	if err != nil {
 		return 0, err

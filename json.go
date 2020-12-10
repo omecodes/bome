@@ -71,7 +71,7 @@ func (s *JsonValueHolder) Count() (int, error) {
 }
 
 func (s *JsonValueHolder) Size(condition BoolExpr) (int64, error) {
-	o, err := s.Client().SQLQueryFirst("select length(value) from $table$ where %s;", IntScanner, condition.sql())
+	o, err := s.Client().SQLQueryFirst("select coalesce(length(value), 0) from $table$ where %s;", IntScanner, condition.sql())
 	if err != nil {
 		return 0, err
 	}
@@ -88,7 +88,7 @@ func (s *JsonValueHolder) TotalSize() (int64, error) {
 		return 0, nil
 	}
 
-	o, err := s.Client().SQLQueryFirst("select sum(length(value)) from $table$;", IntScanner)
+	o, err := s.Client().SQLQueryFirst("select coalesce(sum(length(value)), 0) from $table$;", IntScanner)
 	if err != nil {
 		return 0, err
 	}

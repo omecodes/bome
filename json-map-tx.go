@@ -50,7 +50,7 @@ func (tx *JSONMapTx) Size(key string) (int64, error) {
 }
 
 func (tx *JSONMapTx) TotalSize() (int64, error) {
-	o, err := tx.Client().SQLQueryFirst("select coalesce(sum(length(value), 0) from $table$;", IntScanner)
+	o, err := tx.Client().SQLQueryFirst("select coalesce(sum(length(value)), 0) from $table$;", IntScanner)
 	if err != nil {
 		return 0, err
 	}

@@ -92,7 +92,7 @@ func (l *List) Count() (int64, error) {
 }
 
 func (l *List) Size(index int64) (int64, error) {
-	o, err := l.Client().SQLQueryFirst("select coalesce(length(value), 0) from $table$ where ind=?;", IntScanner, index)
+	o, err := l.Client().SQLQueryFirst("select coalesce(length(value)), 0) from $table$ where ind=?;", IntScanner, index)
 	if err != nil {
 		return 0, err
 	}
@@ -100,7 +100,7 @@ func (l *List) Size(index int64) (int64, error) {
 }
 
 func (l *List) TotalSize() (int64, error) {
-	o, err := l.Client().SQLQueryFirst("select coalesce(sum(length(value), 0) from $table$;", IntScanner)
+	o, err := l.Client().SQLQueryFirst("select coalesce(sum(length(value)), 0) from $table$;", IntScanner)
 	if err != nil {
 		return 0, err
 	}

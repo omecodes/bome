@@ -63,7 +63,7 @@ func (tx *JSONListTx) Size(index int64) (int64, error) {
 }
 
 func (tx *JSONListTx) TotalSize() (int64, error) {
-	o, err := tx.Client().SQLQueryFirst("select coalesce(sum(length(value), 0) from $table$;", IntScanner)
+	o, err := tx.Client().SQLQueryFirst("select coalesce(sum(length(value)), 0) from $table$;", IntScanner)
 	if err != nil {
 		return 0, err
 	}

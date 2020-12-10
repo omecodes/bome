@@ -76,7 +76,7 @@ func (d *Map) Size(key string) (int64, error) {
 }
 
 func (d *Map) TotalSize() (int64, error) {
-	o, err := d.Client().SQLQueryFirst("select coalesce(sum(length(value), 0) from $table$;", IntScanner)
+	o, err := d.Client().SQLQueryFirst("select coalesce(sum(length(value)), 0) from $table$;", IntScanner)
 	if err != nil {
 		return 0, err
 	}
