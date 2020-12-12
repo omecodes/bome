@@ -99,6 +99,6 @@ func NewJSONList(db *sql.DB, dialect string, tableName string) (*JSONList, error
 
 	d.SetTableName(escaped(tableName)).
 		AddTableDefinition(
-			"create table if not exists $table$ (ind integer not null primary key $auto_increment$, value json not null);")
+			"create table if not exists $table$ (ind bigint not null primary key $auto_increment$, value json not null);")
 	return d, d.Init()
 }

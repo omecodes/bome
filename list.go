@@ -204,7 +204,7 @@ func NewList(db *sql.DB, dialect string, tableName string) (*List, error) {
 
 	d.SetTableName(escaped(tableName)).
 		AddTableDefinition(
-			"create table if not exists $table$ (ind integer not null primary key $auto_increment$, value longtext not null);")
+			"create table if not exists $table$ (ind bigint not null primary key $auto_increment$, value longtext not null);")
 	err = d.init()
 	return d, err
 }
