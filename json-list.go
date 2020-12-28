@@ -29,7 +29,8 @@ func (l *JSONList) Transaction(ctx context.Context) (context.Context, *JSONListT
 	}
 
 	return ctx, &JSONListTx{
-		tx: tx.clone(l.Bome),
+		tableName: l.tableName,
+		tx:        tx.clone(l.Bome),
 	}, nil
 }
 
@@ -40,13 +41,15 @@ func (l *JSONList) BeginTransaction() (*JSONListTx, error) {
 	}
 
 	return &JSONListTx{
-		tx: tx,
+		tableName: l.tableName,
+		tx:        tx,
 	}, nil
 }
 
 func (l *JSONList) ContinueTransaction(tx *TX) *JSONListTx {
 	return &JSONListTx{
-		tx: tx.clone(l.Bome),
+		tableName: l.tableName,
+		tx:        tx.clone(l.Bome),
 	}
 }
 

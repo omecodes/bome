@@ -10,6 +10,16 @@ type JSONListTx struct {
 	tx        *TX
 }
 
+func (tx *JSONListTx) Table() string {
+	return tx.tableName
+}
+
+func (tx *JSONListTx) Keys() []string {
+	return []string{
+		"ind",
+	}
+}
+
 func (tx *JSONListTx) Client() Client {
 	return tx.tx
 }

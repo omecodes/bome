@@ -7,7 +7,16 @@ import (
 )
 
 type JSONMapTx struct {
-	tx *TX
+	tableName string
+	tx        *TX
+}
+
+func (tx *JSONMapTx) Table() string {
+	return tx.tableName
+}
+
+func (tx *JSONMapTx) Keys() []string {
+	return []string{"name"}
 }
 
 func (tx *JSONMapTx) Client() Client {

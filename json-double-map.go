@@ -24,12 +24,14 @@ func (s *JSONDoubleMap) Transaction(ctx context.Context) (context.Context, *JSON
 
 		newCtx := contextWithTransaction(ctx, tx)
 		return newCtx, &JSONDoubleMapTx{
-			tx: tx,
+			tx:        tx,
+			tableName: s.tableName,
 		}, nil
 	}
 
 	return ctx, &JSONDoubleMapTx{
-		tx: tx.clone(s.Bome),
+		tableName: s.tableName,
+		tx:        tx.clone(s.Bome),
 	}, nil
 }
 
@@ -40,13 +42,15 @@ func (s *JSONDoubleMap) BeginTransaction() (*JSONDoubleMapTx, error) {
 	}
 
 	return &JSONDoubleMapTx{
-		tx: tx,
+		tableName: s.tableName,
+		tx:        tx,
 	}, nil
 }
 
 func (s *JSONDoubleMap) ContinueTransaction(tx *TX) *JSONDoubleMapTx {
 	return &JSONDoubleMapTx{
-		tx: tx.clone(s.Bome),
+		tableName: s.tableName,
+		tx:        tx.clone(s.Bome),
 	}
 }
 

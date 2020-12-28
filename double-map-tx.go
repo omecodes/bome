@@ -7,6 +7,16 @@ type DoubleMapTx struct {
 	tx        *TX
 }
 
+func (tx *DoubleMapTx) Table() string {
+	return tx.tableName
+}
+
+func (tx *DoubleMapTx) Keys() []string {
+	return []string{
+		"first_key", "second_key",
+	}
+}
+
 func (tx *DoubleMapTx) Client() Client {
 	return tx.tx
 }

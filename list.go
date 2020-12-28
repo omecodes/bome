@@ -11,6 +11,16 @@ type List struct {
 	tableName string
 }
 
+func (l *List) Table() string {
+	return l.tableName
+}
+
+func (l *List) Keys() []string {
+	return []string{
+		"ind",
+	}
+}
+
 func (l *List) Transaction(ctx context.Context) (context.Context, *ListTx, error) {
 	tx := transaction(ctx)
 	if tx == nil {
@@ -21,12 +31,14 @@ func (l *List) Transaction(ctx context.Context) (context.Context, *ListTx, error
 
 		newCtx := contextWithTransaction(ctx, tx)
 		return newCtx, &ListTx{
-			tx: tx,
+			tableName: l.tableName,
+			tx:        tx,
 		}, nil
 	}
 
 	return ctx, &ListTx{
-		tx: tx.clone(l.Bome),
+		tableName: l.tableName,
+		tx:        tx.clone(l.Bome),
 	}, nil
 }
 
@@ -37,13 +49,15 @@ func (l *List) BeginTransaction() (*ListTx, error) {
 	}
 
 	return &ListTx{
-		tx: tx,
+		tableName: l.tableName,
+		tx:        tx,
 	}, nil
 }
 
 func (l *List) ContinueTransaction(tx *TX) *ListTx {
 	return &ListTx{
-		tx: tx.clone(l.Bome),
+		tableName: l.tableName,
+		tx:        tx.clone(l.Bome),
 	}
 }
 

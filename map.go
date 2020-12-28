@@ -11,6 +11,16 @@ type Map struct {
 	*Bome
 }
 
+func (d *Map) Table() string {
+	return d.tableName
+}
+
+func (d *Map) Keys() []string {
+	return []string{
+		"name",
+	}
+}
+
 func (d *Map) Transaction(ctx context.Context) (context.Context, *MapTx, error) {
 	tx := transaction(ctx)
 	if tx == nil {
@@ -21,12 +31,14 @@ func (d *Map) Transaction(ctx context.Context) (context.Context, *MapTx, error) 
 
 		newCtx := contextWithTransaction(ctx, tx)
 		return newCtx, &MapTx{
-			tx: tx,
+			tableName: d.tableName,
+			tx:        tx,
 		}, nil
 	}
 
 	return ctx, &MapTx{
-		tx: tx.clone(d.Bome),
+		tableName: d.tableName,
+		tx:        tx.clone(d.Bome),
 	}, nil
 }
 
@@ -37,13 +49,15 @@ func (d *Map) BeginTransaction() (*MapTx, error) {
 	}
 
 	return &MapTx{
-		tx: tx,
+		tableName: d.tableName,
+		tx:        tx,
 	}, nil
 }
 
 func (d *Map) ContinueTransaction(tx *TX) *MapTx {
 	return &MapTx{
-		tx: tx.clone(d.Bome),
+		tableName: d.tableName,
+		tx:        tx.clone(d.Bome),
 	}
 }
 

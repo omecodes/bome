@@ -22,12 +22,14 @@ func (m *JSONMap) Transaction(ctx context.Context) (context.Context, *JSONMapTx,
 
 		newCtx := contextWithTransaction(ctx, tx)
 		return newCtx, &JSONMapTx{
-			tx: tx,
+			tableName: m.tableName,
+			tx:        tx,
 		}, nil
 	}
 
 	return ctx, &JSONMapTx{
-		tx: tx.clone(m.Bome),
+		tableName: m.tableName,
+		tx:        tx.clone(m.Bome),
 	}, nil
 }
 
@@ -38,13 +40,15 @@ func (m *JSONMap) BeginTransaction() (*JSONMapTx, error) {
 	}
 
 	return &JSONMapTx{
-		tx: tx,
+		tableName: m.tableName,
+		tx:        tx,
 	}, nil
 }
 
 func (m *JSONMap) ContinueTransaction(tx *TX) *JSONMapTx {
 	return &JSONMapTx{
-		tx: tx.clone(m.Bome),
+		tableName: m.tableName,
+		tx:        tx.clone(m.Bome),
 	}
 }
 

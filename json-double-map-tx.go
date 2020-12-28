@@ -6,7 +6,18 @@ import (
 )
 
 type JSONDoubleMapTx struct {
-	tx *TX
+	tx        *TX
+	tableName string
+}
+
+func (tx *JSONDoubleMapTx) Table() string {
+	return tx.tableName
+}
+
+func (tx *JSONDoubleMapTx) Keys() []string {
+	return []string{
+		"first_key", "second_key",
+	}
 }
 
 func (tx *JSONDoubleMapTx) Client() Client {

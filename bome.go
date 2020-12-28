@@ -316,6 +316,30 @@ func (bome *Bome) AddUniqueIndex(index Index, forceUpdate bool) error {
 	return nil
 }
 
+// AddForeignKey
+func (bome *Bome) AddForeignKey(fk *ForeignKey) error {
+	o, err := bome.QueryFirst("SELECT 1 FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS WHERE CONSTRAINT_NAME =?", BoolScanner, fk.Name)
+	if err != nil {
+		return err
+	}
+
+	if !o.(bool) {
+		addForeignKeySQL := fmt.Sprintf("alter table '%s' add constraint '%s' foreign key (%s) references %s(%s)",
+			fk.Target.Table,
+			fk.Name,
+			strings.Join(fk.Target.Fields, ","),
+			fk.Source.Table,
+			strings.Join(fk.Source.Fields, ","),
+		)
+		if fk.OnDeleteCascade {
+			addForeignKeySQL += " on delete cascade"
+		}
+		r := bome.RawExec(addForeignKeySQL)
+		return r.Error
+	}
+	return nil
+}
+
 // AddStatement registers a statement that can later be called with the given name
 func (bome *Bome) AddStatement(name string, statementStr string) *Bome {
 	if bome.registeredStatements == nil {

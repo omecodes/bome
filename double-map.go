@@ -12,6 +12,16 @@ type DoubleMap struct {
 	*Bome
 }
 
+func (s *DoubleMap) Table() string {
+	return s.tableName
+}
+
+func (s *DoubleMap) Keys() []string {
+	return []string{
+		"first_key", "second_key",
+	}
+}
+
 func (s *DoubleMap) Transaction(ctx context.Context) (context.Context, *DoubleMapTx, error) {
 	tx := transaction(ctx)
 	if tx == nil {
@@ -28,7 +38,8 @@ func (s *DoubleMap) Transaction(ctx context.Context) (context.Context, *DoubleMa
 	}
 
 	return ctx, &DoubleMapTx{
-		tx: tx.clone(s.Bome),
+		tableName: s.tableName,
+		tx:        tx.clone(s.Bome),
 	}, nil
 }
 
@@ -39,7 +50,8 @@ func (s *DoubleMap) BeginTransaction() (*DoubleMapTx, error) {
 	}
 
 	return &DoubleMapTx{
-		tx: tx,
+		tableName: s.tableName,
+		tx:        tx,
 	}, nil
 }
 

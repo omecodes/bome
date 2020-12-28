@@ -3,7 +3,18 @@ package bome
 import "log"
 
 type MapTx struct {
-	tx *TX
+	tableName string
+	tx        *TX
+}
+
+func (tx *MapTx) Table() string {
+	return tx.tableName
+}
+
+func (tx *MapTx) Keys() []string {
+	return []string{
+		"name",
+	}
 }
 
 func (tx *MapTx) Client() Client {

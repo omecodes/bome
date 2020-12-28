@@ -3,7 +3,18 @@ package bome
 import "log"
 
 type ListTx struct {
-	tx *TX
+	tableName string
+	tx        *TX
+}
+
+func (tx *ListTx) Table() string {
+	return tx.tableName
+}
+
+func (tx *ListTx) Keys() []string {
+	return []string{
+		"ind",
+	}
 }
 
 func (tx *ListTx) Client() Client {
