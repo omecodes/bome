@@ -318,7 +318,7 @@ func (bome *Bome) AddForeignKey(fk *ForeignKey) error {
 		}
 	}
 
-	if o != nil && !o.(bool) {
+	if o == nil || !o.(bool) {
 		r := bome.RawExec(fk.AlterTableAddQuery())
 		return r.Error
 	}
