@@ -311,12 +311,14 @@ func (bome *Bome) AddUniqueIndex(index Index, forceUpdate bool) error {
 
 // AddForeignKey
 func (bome *Bome) AddForeignKey(fk *ForeignKey) error {
-	o, err := bome.RawQueryFirst("SELECT 1 FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS WHERE CONSTRAINT_NAME =?", BoolScanner, fk.Name)
+	o, err := bome.RawQueryFirst("SELECT 1 FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS WHERE CONSTRAINT_NAME=?", BoolScanner, fk.Name)
 	if err != nil {
-		return err
+		if !IsNotFound(err) {
+			return err
+		}
 	}
 
-	if !o.(bool) {
+	if o != nil && !o.(bool) {
 		r := bome.RawExec(fk.AlterTableAddQuery())
 		return r.Error
 	}
