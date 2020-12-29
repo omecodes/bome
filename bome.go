@@ -34,13 +34,6 @@ type Result struct {
 	AffectedRows int64
 }
 
-// Index is the equivalent of SQL index
-type Index struct {
-	Name   string
-	Table  string
-	Fields []string
-}
-
 // Bome is an SQL database driver
 type Bome struct {
 	sqlDb                      *sql.DB
@@ -290,7 +283,7 @@ func (bome *Bome) AddUniqueIndex(index Index, forceUpdate bool) error {
 		if bome.dialect == "mysql" {
 			dropIndexSQL = fmt.Sprintf("drop index %s on %s", index.Name, index.Table)
 		} else {
-			dropIndexSQL = fmt.Sprintf("drop index if exists %s", index.Name)
+			dropIndexSQL = fmt.Sprintf("drop index if exists %s on %s", index.Name, index.Table)
 		}
 
 		result = bome.RawExec(dropIndexSQL)
@@ -325,11 +318,11 @@ func (bome *Bome) AddForeignKey(fk *ForeignKey) error {
 
 	if !o.(bool) {
 		addForeignKeySQL := fmt.Sprintf("alter table '%s' add constraint '%s' foreign key (%s) references %s(%s)",
-			fk.Target.Table,
+			fk.Table.Table,
 			fk.Name,
-			strings.Join(fk.Target.Fields, ","),
-			fk.Source.Table,
-			strings.Join(fk.Source.Fields, ","),
+			strings.Join(fk.Table.Fields, ","),
+			fk.References.Table,
+			strings.Join(fk.References.Fields, ","),
 		)
 		if fk.OnDeleteCascade {
 			addForeignKeySQL += " on delete cascade"
