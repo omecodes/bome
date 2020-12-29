@@ -14,6 +14,16 @@ type JSONDoubleMap struct {
 	dialect   string
 }
 
+func (s *JSONDoubleMap) Table() string {
+	return s.tableName
+}
+
+func (s *JSONDoubleMap) Keys() []string {
+	return []string{
+		"first_key", "second_key",
+	}
+}
+
 func (s *JSONDoubleMap) Transaction(ctx context.Context) (context.Context, *JSONDoubleMapTx, error) {
 	tx := transaction(ctx)
 	if tx == nil {

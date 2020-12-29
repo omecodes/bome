@@ -19,7 +19,7 @@ type ForeignKey struct {
 
 func (fk *ForeignKey) AlterTableAddQuery() string {
 	addForeignKeySQL := fmt.Sprintf(
-		"alter table '%s' add constraint '%s' foreign key (%s) references %s(%s)",
+		"alter table %s add constraint %s foreign key (%s) references %s(%s)",
 		fk.Table.Table,
 		fk.Name,
 		strings.Join(fk.Table.Fields, ","),

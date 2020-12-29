@@ -12,6 +12,16 @@ type JSONMap struct {
 	tableName string
 }
 
+func (m *JSONMap) Table() string {
+	return m.tableName
+}
+
+func (m *JSONMap) Keys() []string {
+	return []string{
+		"name",
+	}
+}
+
 func (m *JSONMap) Transaction(ctx context.Context) (context.Context, *JSONMapTx, error) {
 	tx := transaction(ctx)
 	if tx == nil {

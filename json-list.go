@@ -13,6 +13,16 @@ type JSONList struct {
 	tableName string
 }
 
+func (l *JSONList) Table() string {
+	return l.tableName
+}
+
+func (l *JSONList) Keys() []string {
+	return []string{
+		"ind",
+	}
+}
+
 func (l *JSONList) Transaction(ctx context.Context) (context.Context, *JSONListTx, error) {
 	tx := transaction(ctx)
 	if tx == nil {
