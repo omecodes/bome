@@ -67,10 +67,19 @@ func (tx *DoubleMapTx) TotalSize() (int64, error) {
 }
 
 func (tx *DoubleMapTx) Save(m *DoubleMapEntry) error {
-	if tx.Client().SQLExec("insert into $table$ values (?, ?, ?);", m.FirstKey, m.SecondKey, m.Value) != nil {
-		return tx.Client().SQLExec("update $table$ set value=? where first_key=? and second_key=?;", m.Value, m.FirstKey, m.SecondKey)
+	return tx.Client().SQLExec("insert into $table$ values (?, ?, ?);", m.FirstKey, m.SecondKey, m.Value)
+}
+
+func (tx *DoubleMapTx) Update(m *DoubleMapEntry) error {
+	return tx.Client().SQLExec("update $table$ set value=? where first_key=? and second_key=?;", m.Value, m.FirstKey, m.SecondKey)
+}
+
+func (tx *DoubleMapTx) Upsert(m *DoubleMapEntry) error {
+	err := tx.Save(m)
+	if !IsPrimaryKeyConstraintError(err) {
+		return err
 	}
-	return nil
+	return tx.Client().SQLExec("update $table$ set value=? where first_key=? and second_key=?;", m.Value, m.FirstKey, m.SecondKey)
 }
 
 func (tx *DoubleMapTx) Get(firstKey, secondKey string) (string, error) {

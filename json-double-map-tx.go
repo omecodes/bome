@@ -31,10 +31,19 @@ func (tx *JSONDoubleMapTx) Contains(firstKey, secondKey string) (bool, error) {
 }
 
 func (tx *JSONDoubleMapTx) Save(m *DoubleMapEntry) error {
-	if tx.Client().SQLExec("insert into $table$ values (?, ?, ?);", m.FirstKey, m.SecondKey, m.Value) != nil {
-		return tx.Client().SQLExec("update $table$ set value=? where first_key=? and second_key=?;", m.Value, m.FirstKey, m.SecondKey)
+	return tx.Client().SQLExec("insert into $table$ values (?, ?, ?);", m.FirstKey, m.SecondKey, m.Value)
+}
+
+func (tx *JSONDoubleMapTx) Update(m *DoubleMapEntry) error {
+	return tx.Client().SQLExec("update $table$ set value=? where first_key=? and second_key=?;", m.Value, m.FirstKey, m.SecondKey)
+}
+
+func (tx *JSONDoubleMapTx) Upsert(m *DoubleMapEntry) error {
+	err := tx.Save(m)
+	if !IsPrimaryKeyConstraintError(err) {
+		return err
 	}
-	return nil
+	return tx.Client().SQLExec("update $table$ set value=? where first_key=? and second_key=?;", m.Value, m.FirstKey, m.SecondKey)
 }
 
 func (tx *JSONDoubleMapTx) Get(firstKey, secondKey string) (string, error) {

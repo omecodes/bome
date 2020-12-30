@@ -1,6 +1,9 @@
 package bome
 
-import "context"
+import (
+	"context"
+	"database/sql"
+)
 
 type ctxTx struct{}
 type ctxWithTransaction struct{}
@@ -19,7 +22,7 @@ func transaction(ctx context.Context) *TX {
 	return o.(*TX)
 }
 
-func CommitTransactions(ctx context.Context) error {
+func TransactionsCommit(ctx context.Context) error {
 	tx := transaction(ctx)
 	if tx == nil {
 		return TransactionNotFound
@@ -27,18 +30,26 @@ func CommitTransactions(ctx context.Context) error {
 	return tx.Commit()
 }
 
-func RollbackTransactions(ctx context.Context) error {
+func TransactionExec(ctx context.Context, query string, args ...interface{}) (sql.Result, error) {
+	tx := transaction(ctx)
+	if tx == nil {
+		return nil, TransactionNotFound
+	}
+	return tx.Exec(query, args...)
+}
+
+func TransactionQuery(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error) {
+	tx := transaction(ctx)
+	if tx == nil {
+		return nil, TransactionNotFound
+	}
+	return tx.Query(query, args...)
+}
+
+func TransactionRollback(ctx context.Context) error {
 	tx := transaction(ctx)
 	if tx == nil {
 		return TransactionNotFound
 	}
 	return tx.Rollback()
-}
-
-func IsTransactionContext(ctx context.Context) bool {
-	o := ctx.Value(ctxWithTransaction{})
-	if o == nil {
-		return false
-	}
-	return true
 }

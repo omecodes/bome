@@ -69,6 +69,18 @@ func (l *List) Save(entry *ListEntry) error {
 	return l.Client().SQLExec("insert into $table$ values (?, ?);", entry.Index, entry.Value)
 }
 
+func (l *List) Update(entry *ListEntry) error {
+	return l.Client().SQLExec("update $table$ set value=? where ind=?;", entry.Index, entry.Value)
+}
+
+func (l *List) Upsert(entry *ListEntry) error {
+	err := l.Save(entry)
+	if !IsPrimaryKeyConstraintError(err) {
+		return err
+	}
+	return l.Update(entry)
+}
+
 func (l *List) Append(entry *ListEntry) error {
 	return l.Client().SQLExec("insert into $table$ (value) values (?);", entry.Value)
 }

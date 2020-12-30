@@ -66,11 +66,19 @@ func (d *Map) Client() Client {
 }
 
 func (d *Map) Save(entry *MapEntry) error {
-	err := d.Client().SQLExec("insert into $table$ values (?, ?);", entry.Key, entry.Value)
-	if err != nil {
-		err = d.Client().SQLExec("update $table$ set value=? where name=?;", entry.Value, entry.Key)
+	return d.Client().SQLExec("insert into $table$ values (?, ?);", entry.Key, entry.Value)
+}
+
+func (d *Map) Update(entry *MapEntry) error {
+	return d.Client().SQLExec("update $table$ set value=? where ind=?;", entry.Key, entry.Value)
+}
+
+func (d *Map) Upsert(entry *MapEntry) error {
+	err := d.Save(entry)
+	if !IsPrimaryKeyConstraintError(err) {
+		return err
 	}
-	return err
+	return d.Update(entry)
 }
 
 func (d *Map) Get(key string) (string, error) {

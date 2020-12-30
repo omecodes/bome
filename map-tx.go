@@ -22,11 +22,19 @@ func (tx *MapTx) Client() Client {
 }
 
 func (tx *MapTx) Save(entry *MapEntry) error {
-	err := tx.Client().SQLExec("insert into $table$ values (?, ?);", entry.Key, entry.Value)
-	if err != nil {
-		err = tx.Client().SQLExec("update $table$ set value=? where name=?;", entry.Value, entry.Key)
+	return tx.Client().SQLExec("insert into $table$ values (?, ?);", entry.Key, entry.Value)
+}
+
+func (tx *MapTx) Update(entry *MapEntry) error {
+	return tx.Client().SQLExec("update $table$ set value=? where name=?;", entry.Key, entry.Value)
+}
+
+func (tx *MapTx) Upsert(entry *MapEntry) error {
+	err := tx.Save(entry)
+	if !IsPrimaryKeyConstraintError(err) {
+		return err
 	}
-	return err
+	return tx.Update(entry)
 }
 
 func (tx *MapTx) Get(key string) (string, error) {

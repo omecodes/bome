@@ -24,11 +24,19 @@ func (tx *JSONMapTx) Client() Client {
 }
 
 func (tx *JSONMapTx) Save(entry *MapEntry) error {
-	err := tx.Client().SQLExec("insert into $table$ values (?, ?);", entry.Key, entry.Value)
-	if err != nil {
-		err = tx.Client().SQLExec("update $table$ set value=? where name=?;", entry.Value, entry.Key)
+	return tx.Client().SQLExec("insert into $table$ values (?, ?);", entry.Key, entry.Value)
+}
+
+func (tx *JSONMapTx) Update(entry *MapEntry) error {
+	return tx.Client().SQLExec("update $table$ set value=? where name=?;", entry.Key, entry.Value)
+}
+
+func (tx *JSONMapTx) Upsert(entry *MapEntry) error {
+	err := tx.Save(entry)
+	if !IsPrimaryKeyConstraintError(err) {
+		return err
 	}
-	return err
+	return tx.Update(entry)
 }
 
 func (tx *JSONMapTx) Get(key string) (string, error) {
