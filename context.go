@@ -53,3 +53,7 @@ func TransactionRollback(ctx context.Context) error {
 	}
 	return tx.Rollback()
 }
+
+func IsTransactionContext(ctx context.Context) bool {
+	return ctx.Value(ctxTx{}) != nil
+}
