@@ -66,20 +66,20 @@ func (tx *DoubleMapTx) TotalSize() (int64, error) {
 	return o.(int64), nil
 }
 
-func (tx *DoubleMapTx) Save(m *DoubleMapEntry) error {
-	return tx.Client().SQLExec("insert into $table$ values (?, ?, ?);", m.FirstKey, m.SecondKey, m.Value)
+func (tx *DoubleMapTx) Save(entry *DoubleMapEntry) error {
+	return tx.Client().SQLExec("insert into $table$ values (?, ?, ?);", entry.FirstKey, entry.SecondKey, entry.Value)
 }
 
-func (tx *DoubleMapTx) Update(m *DoubleMapEntry) error {
-	return tx.Client().SQLExec("update $table$ set value=? where first_key=? and second_key=?;", m.Value, m.FirstKey, m.SecondKey)
+func (tx *DoubleMapTx) Update(entry *DoubleMapEntry) error {
+	return tx.Client().SQLExec("update $table$ set value=? where first_key=? and second_key=?;", entry.Value, entry.FirstKey, entry.SecondKey)
 }
 
-func (tx *DoubleMapTx) Upsert(m *DoubleMapEntry) error {
-	err := tx.Save(m)
-	if !IsPrimaryKeyConstraintError(err) {
-		return err
+func (tx *DoubleMapTx) Upsert(entry *DoubleMapEntry) error {
+	err := tx.Save(entry)
+	if err != nil && IsPrimaryKeyConstraintError(err) {
+		err = tx.Update(entry)
 	}
-	return tx.Client().SQLExec("update $table$ set value=? where first_key=? and second_key=?;", m.Value, m.FirstKey, m.SecondKey)
+	return err
 }
 
 func (tx *DoubleMapTx) Get(firstKey, secondKey string) (string, error) {

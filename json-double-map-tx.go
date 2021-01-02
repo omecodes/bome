@@ -30,20 +30,20 @@ func (tx *JSONDoubleMapTx) Contains(firstKey, secondKey string) (bool, error) {
 	return o.(bool), err
 }
 
-func (tx *JSONDoubleMapTx) Save(m *DoubleMapEntry) error {
-	return tx.Client().SQLExec("insert into $table$ values (?, ?, ?);", m.FirstKey, m.SecondKey, m.Value)
+func (tx *JSONDoubleMapTx) Save(entry *DoubleMapEntry) error {
+	return tx.Client().SQLExec("insert into $table$ values (?, ?, ?);", entry.FirstKey, entry.SecondKey, entry.Value)
 }
 
-func (tx *JSONDoubleMapTx) Update(m *DoubleMapEntry) error {
-	return tx.Client().SQLExec("update $table$ set value=? where first_key=? and second_key=?;", m.Value, m.FirstKey, m.SecondKey)
+func (tx *JSONDoubleMapTx) Update(entry *DoubleMapEntry) error {
+	return tx.Client().SQLExec("update $table$ set value=? where first_key=? and second_key=?;", entry.Value, entry.FirstKey, entry.SecondKey)
 }
 
-func (tx *JSONDoubleMapTx) Upsert(m *DoubleMapEntry) error {
-	err := tx.Save(m)
-	if !IsPrimaryKeyConstraintError(err) {
-		return err
+func (tx *JSONDoubleMapTx) Upsert(entry *DoubleMapEntry) error {
+	err := tx.Save(entry)
+	if err != nil && IsPrimaryKeyConstraintError(err) {
+		err = tx.Update(entry)
 	}
-	return tx.Client().SQLExec("update $table$ set value=? where first_key=? and second_key=?;", m.Value, m.FirstKey, m.SecondKey)
+	return err
 }
 
 func (tx *JSONDoubleMapTx) Get(firstKey, secondKey string) (string, error) {

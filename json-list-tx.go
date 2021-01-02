@@ -34,10 +34,10 @@ func (tx *JSONListTx) Update(entry *ListEntry) error {
 
 func (tx *JSONListTx) Upsert(entry *ListEntry) error {
 	err := tx.Save(entry)
-	if !IsPrimaryKeyConstraintError(err) {
-		return err
+	if err != nil && IsPrimaryKeyConstraintError(err) {
+		return tx.Update(entry)
 	}
-	return tx.Update(entry)
+	return err
 }
 
 func (tx *JSONListTx) Append(entry *ListEntry) error {
