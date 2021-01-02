@@ -27,7 +27,7 @@ func IsPrimaryKeyConstraintError(err error) bool {
 	if me, ok := err.(*mysql.MySQLError); ok {
 		return me.Number == 1062
 
-	} else if se, ok := err.(*sqlite3.Error); ok {
+	} else if se, ok := err.(sqlite3.Error); ok {
 		return se.ExtendedCode == sqlite3.ErrConstraintPrimaryKey
 	}
 	return false
@@ -37,7 +37,7 @@ func IsForeignKeyConstraintError(err error) bool {
 	if me, ok := err.(*mysql.MySQLError); ok {
 		return me.Number == 1216
 
-	} else if se, ok := err.(*sqlite3.Error); ok {
+	} else if se, ok := err.(sqlite3.Error); ok {
 		return se.ExtendedCode == sqlite3.ErrConstraintForeignKey
 	}
 	return false
