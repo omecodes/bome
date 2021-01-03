@@ -3,7 +3,6 @@ package bome
 import (
 	"context"
 	"fmt"
-	"strings"
 )
 
 func NewJsonValueHolder(field string, db *Bome) *JsonValueHolder {
@@ -97,24 +96,22 @@ func (s *JsonValueHolder) TotalSize() (int64, error) {
 
 func (s *JsonValueHolder) EditAll(path string, ex Expression) error {
 	rawQuery := fmt.Sprintf(
-		"update $table$ set __value__=json_set(%s, '%s', %s);",
+		"update $table$ set value=json_set(%s, '%s', %s);",
 		s.field,
 		normalizedJsonPath(path),
 		ex.eval(),
 	)
-	rawQuery = strings.Replace(rawQuery, "__value__", s.field, -1)
 	return s.Client().SQLExec(rawQuery)
 }
 
 func (s *JsonValueHolder) EditAllMatching(path string, ex Expression, condition BoolExpr) error {
 	rawQuery := fmt.Sprintf(
-		"update $table$ set __value__=json_insert(%s, '%s', %s) where %s",
+		"update $table$ set value=json_set(%s, '%s', %s) where %s",
 		s.field,
 		normalizedJsonPath(path),
 		ex.eval(),
 		condition.sql(),
 	)
-	rawQuery = strings.Replace(rawQuery, "__value__", s.field, -1)
 	return s.Client().SQLExec(rawQuery)
 }
 
@@ -124,7 +121,6 @@ func (s *JsonValueHolder) ExtractAll(path string, condition BoolExpr, scannerNam
 		path,
 		condition.sql(),
 	)
-	rawQuery = strings.Replace(rawQuery, "__value__", s.field, -1)
 	return s.Client().SQLQuery(rawQuery, scannerName)
 }
 
@@ -132,7 +128,6 @@ func (s *JsonValueHolder) Search(condition BoolExpr, scannerName string) (Cursor
 	rawQuery := fmt.Sprintf("select * from $table$ where %s;",
 		condition.sql(),
 	)
-	rawQuery = strings.Replace(rawQuery, "__value__", s.field, -1)
 	return s.Client().SQLQuery(rawQuery, scannerName)
 }
 
@@ -140,6 +135,5 @@ func (s *JsonValueHolder) RangeOf(condition BoolExpr, scannerName string, offset
 	rawQuery := fmt.Sprintf("select * from $table$ where %s limit ?, ?;",
 		condition.sql(),
 	)
-	rawQuery = strings.Replace(rawQuery, "__value__", s.field, -1)
 	return s.Client().SQLQuery(rawQuery, scannerName, offset, count)
 }

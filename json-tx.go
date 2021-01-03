@@ -26,7 +26,7 @@ func (s *JsonValueHolderTx) EditAll(path string, ex Expression) error {
 
 func (s *JsonValueHolderTx) EditAllMatching(path string, ex Expression, condition BoolExpr) error {
 	rawQuery := fmt.Sprintf(
-		"update $table$ set %s=json_insert(%s, '%s', %s) where %s",
+		"update $table$ set %s=json_set(%s, '%s', %s) where %s",
 		s.field,
 		s.field,
 		normalizedJsonPath(path),

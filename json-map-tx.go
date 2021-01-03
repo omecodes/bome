@@ -3,7 +3,6 @@ package bome
 import (
 	"fmt"
 	"log"
-	"strings"
 )
 
 type JSONMapTx struct {
@@ -112,7 +111,6 @@ func (tx *JSONMapTx) EditAt(key string, path string, ex Expression) error {
 	rawQuery := fmt.Sprintf("update $table$ set value=json_set(value, '%s', %s) where name=?;",
 		normalizedJsonPath(path),
 		ex.eval())
-	rawQuery = strings.Replace(rawQuery, "__value__", "value", -1)
 	return tx.Client().SQLExec(rawQuery, key)
 }
 
@@ -136,7 +134,7 @@ func (tx *JSONMapTx) EditAll(path string, ex Expression) error {
 
 func (tx *JSONMapTx) EditAllMatching(path string, ex Expression, condition BoolExpr) error {
 	rawQuery := fmt.Sprintf(
-		"update $table$ set value=json_insert(value, '%s', %s) where %s",
+		"update $table$ set value=json_set(value, '%s', %s) where %s",
 		normalizedJsonPath(path),
 		ex.eval(),
 		condition.sql(),

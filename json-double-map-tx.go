@@ -221,7 +221,7 @@ func (tx *JSONDoubleMapTx) EditAll(path string, ex Expression) error {
 
 func (tx *JSONDoubleMapTx) EditAllMatching(path string, ex Expression, condition BoolExpr) error {
 	rawQuery := fmt.Sprintf(
-		"update $table$ set value=json_insert(value, '%s', %s) where %s",
+		"update $table$ set value=json_set(value, '%s', %s) where %s",
 		normalizedJsonPath(path),
 		ex.eval(),
 		condition.sql(),
