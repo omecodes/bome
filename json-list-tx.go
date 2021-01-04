@@ -145,6 +145,52 @@ func (tx *JSONListTx) Range(offset, count int) ([]*ListEntry, error) {
 	return entries, nil
 }
 
+func (tx *JSONListTx) AllInRange(after, before int64, count int) (Cursor, int64, error) {
+	var (
+		total int64
+		c     Cursor
+	)
+
+	if after > 0 && before <= 0 {
+		o, err := tx.Client().SQLQueryFirst("select count(*) from $table$ where ind > ?;", IntScanner, after, count)
+		if err != nil {
+			return nil, 0, err
+		}
+		total = o.(int64)
+
+		c, err = tx.Client().SQLQuery("select * from $table$ where ind > ? limit 0, ?;", ListEntryScanner, after, count)
+		if err != nil {
+			return nil, 0, err
+		}
+
+	} else if before > 0 && after <= 0 {
+		o, err := tx.Client().SQLQueryFirst("select count(*) from $table$ where ind > ?;", IntScanner, after, count)
+		if err != nil {
+			return nil, 0, err
+		}
+		total = o.(int64)
+
+		c, err = tx.Client().SQLQuery("select * from $table$ where ind < ? limit 0, ?;", ListEntryScanner, before, count)
+		if err != nil {
+			return nil, 0, err
+		}
+
+	} else {
+		o, err := tx.Client().SQLQueryFirst("select count(*) from $table$ where ind > ? and ind < ?;", IntScanner, after, count)
+		if err != nil {
+			return nil, 0, err
+		}
+		total = o.(int64)
+
+		c, err = tx.Client().SQLQuery("select * from $table$ where ind > ? and ind < ? limit 0, ?;", ListEntryScanner, after, before, count)
+		if err != nil {
+			return nil, 0, err
+		}
+	}
+
+	return c, total, nil
+}
+
 func (tx *JSONListTx) AllBefore(index int64) (Cursor, error) {
 	return tx.Client().SQLQuery("select * from $table$ where ind<=? order by ind;", ListEntryScanner, index)
 }
