@@ -28,9 +28,10 @@ func IsPrimaryKeyConstraintError(err error) bool {
 		return me.Number == 1062
 
 	} else if se, ok := err.(sqlite3.Error); ok {
-		return se.ExtendedCode == 2067
+		return se.ExtendedCode == 2067 || se.ExtendedCode == 1555
 	}
 	return false
+
 }
 
 func IsForeignKeyConstraintError(err error) bool {
