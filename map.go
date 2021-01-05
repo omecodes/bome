@@ -70,7 +70,7 @@ func (d *Map) Save(entry *MapEntry) error {
 }
 
 func (d *Map) Update(entry *MapEntry) error {
-	return d.Client().SQLExec("update $table$ set value=? where ind=?;", entry.Key, entry.Value)
+	return d.Client().SQLExec("update $table$ set value=? where name=?;", entry.Value, entry.Key)
 }
 
 func (d *Map) Upsert(entry *MapEntry) error {

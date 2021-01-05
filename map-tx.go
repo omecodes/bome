@@ -26,7 +26,7 @@ func (tx *MapTx) Save(entry *MapEntry) error {
 }
 
 func (tx *MapTx) Update(entry *MapEntry) error {
-	return tx.Client().SQLExec("update $table$ set value=? where name=?;", entry.Key, entry.Value)
+	return tx.Client().SQLExec("update $table$ set value=? where name=?;", entry.Value, entry.Key)
 }
 
 func (tx *MapTx) Upsert(entry *MapEntry) error {

@@ -29,7 +29,7 @@ func (tx *JSONListTx) Save(entry *ListEntry) error {
 }
 
 func (tx *JSONListTx) Update(entry *ListEntry) error {
-	return tx.Client().SQLExec("update $table$ set value=? where ind=?;", entry.Index, entry.Value)
+	return tx.Client().SQLExec("update $table$ set value=? where ind=?;", entry.Value, entry.Index)
 }
 
 func (tx *JSONListTx) Upsert(entry *ListEntry) error {

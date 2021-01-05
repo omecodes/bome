@@ -27,7 +27,7 @@ func (tx *JSONMapTx) Save(entry *MapEntry) error {
 }
 
 func (tx *JSONMapTx) Update(entry *MapEntry) error {
-	return tx.Client().SQLExec("update $table$ set value=? where name=?;", entry.Key, entry.Value)
+	return tx.Client().SQLExec("update $table$ set value=? where name=?;", entry.Value, entry.Key)
 }
 
 func (tx *JSONMapTx) Upsert(entry *MapEntry) error {

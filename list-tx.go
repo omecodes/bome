@@ -26,7 +26,7 @@ func (tx *ListTx) Save(entry *ListEntry) error {
 }
 
 func (tx *ListTx) Update(entry *ListEntry) error {
-	return tx.Client().SQLExec("update $table$ set value=? where ind=?;", entry.Index, entry.Value)
+	return tx.Client().SQLExec("update $table$ set value=? where ind=?;", entry.Value, entry.Index)
 }
 
 func (tx *ListTx) Upsert(entry *ListEntry) error {
@@ -149,7 +149,7 @@ func (tx *ListTx) AllInRange(after, before int64, count int) (Cursor, int64, err
 	)
 
 	if after > 0 && before <= 0 {
-		o, err := tx.Client().SQLQueryFirst("select count(*) from $table$ where ind > ?;", IntScanner, after, count)
+		o, err := tx.Client().SQLQueryFirst("select count(ind) from $table$ where ind > ?;", IntScanner, after, count)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -161,7 +161,7 @@ func (tx *ListTx) AllInRange(after, before int64, count int) (Cursor, int64, err
 		}
 
 	} else if before > 0 && after <= 0 {
-		o, err := tx.Client().SQLQueryFirst("select count(*) from $table$ where ind > ?;", IntScanner, after, count)
+		o, err := tx.Client().SQLQueryFirst("select count(ind) from $table$ where ind > ?;", IntScanner, after, count)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -173,7 +173,7 @@ func (tx *ListTx) AllInRange(after, before int64, count int) (Cursor, int64, err
 		}
 
 	} else {
-		o, err := tx.Client().SQLQueryFirst("select count(*) from $table$ where ind > ? and ind < ?;", IntScanner, after, count)
+		o, err := tx.Client().SQLQueryFirst("select count(ind) from $table$ where ind > ? and ind < ?;", IntScanner, after, count)
 		if err != nil {
 			return nil, 0, err
 		}
