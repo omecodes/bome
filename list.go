@@ -186,58 +186,44 @@ func (l *List) Range(offset, count int) ([]*ListEntry, error) {
 	return entries, nil
 }
 
-func (l *List) AllInRange(after, before int64, count int) (Cursor, int64, error) {
+func (l *List) IndexInRange(after, before int64) (Cursor, int64, error) {
 	var (
 		total int64
 		c     Cursor
 	)
 
-	if after > 0 && before <= 0 {
-		o, err := l.Client().SQLQueryFirst("select count(ind) from $table$ where ind > ?;", IntScanner, after, count)
-		if err != nil {
-			return nil, 0, err
-		}
-		total = o.(int64)
+	o, err := l.Client().SQLQueryFirst("select count(ind) from $table$ where ind > ? and ind < ?;", IntScanner, after, before)
+	if err != nil {
+		return nil, 0, err
+	}
+	total = o.(int64)
 
-		c, err = l.Client().SQLQuery("select * from $table$ where ind > ? limit 0, ?;", ListEntryScanner, after, count)
-		if err != nil {
-			return nil, 0, err
-		}
-
-	} else if before > 0 && after <= 0 {
-		o, err := l.Client().SQLQueryFirst("select count(ind) from $table$ where ind > ?;", IntScanner, after, count)
-		if err != nil {
-			return nil, 0, err
-		}
-		total = o.(int64)
-
-		c, err = l.Client().SQLQuery("select * from $table$ where ind < ? limit 0, ?;", ListEntryScanner, before, count)
-		if err != nil {
-			return nil, 0, err
-		}
-
-	} else {
-		o, err := l.Client().SQLQueryFirst("select count(ind) from $table$ where ind > ? and ind < ?;", IntScanner, after, count)
-		if err != nil {
-			return nil, 0, err
-		}
-		total = o.(int64)
-
-		c, err = l.Client().SQLQuery("select * from $table$ where ind > ? and ind < ? limit 0, ?;", ListEntryScanner, after, before, count)
-		if err != nil {
-			return nil, 0, err
-		}
+	c, err = l.Client().SQLQuery("select * from $table$ where ind > ? and ind < ?;", ListEntryScanner, after, before)
+	if err != nil {
+		return nil, 0, err
 	}
 
 	return c, total, nil
 }
 
-func (l *List) AllBefore(index int64) (Cursor, error) {
-	return l.Client().SQLQuery("select * from $table$ where ind<? order by ind;", ListEntryScanner, index)
+func (l *List) IndexBefore(index int64) (Cursor, int64, error) {
+	o, err := l.Client().SQLQueryFirst("select count(ind) from $table$ where ind < ?;", IntScanner, index)
+	if err != nil {
+		return nil, 0, err
+	}
+	total := o.(int64)
+	cursor, err := l.Client().SQLQuery("select * from $table$ where ind<? order by ind;", ListEntryScanner, index)
+	return cursor, total, err
 }
 
-func (l *List) AllAfter(index int64) (Cursor, error) {
-	return l.Client().SQLQuery("select * from $table$ where ind>=? order by ind;", ListEntryScanner, index)
+func (l *List) IndexAfter(index int64) (Cursor, int64, error) {
+	o, err := l.Client().SQLQueryFirst("select count(ind) from $table$ where ind > ?;", IntScanner, index)
+	if err != nil {
+		return nil, 0, err
+	}
+	total := o.(int64)
+	cursor, err := l.Client().SQLQuery("select * from $table$ where ind<? order by ind;", ListEntryScanner, index)
+	return cursor, total, err
 }
 
 func (l *List) Delete(index int64) error {
