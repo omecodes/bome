@@ -13,7 +13,6 @@ jobs:
     name: Run bome unit tests
     runs-on: ubuntu-latest
     env:
-      BOME_JSON_TESTS_ENABLED: 1
       BOME_TESTS_DB: bome:bome@tcp(localhost:3306)/bome?charset=utf8
       BOME_TESTS_DIALECT: mysql
     steps:
@@ -74,4 +73,4 @@ jobs:
           fi
 
       - name: Test
-        run: go test -v .
+        run: go test -tags json1 -v .
