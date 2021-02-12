@@ -2,111 +2,114 @@ package bome
 
 import (
 	"context"
-	"database/sql"
 	"log"
 )
 
 type Map struct {
 	tableName string
-	*Bome
+	tx        *TX
+	dialect   string
+	*DB
 }
 
-func (d *Map) Table() string {
-	return d.tableName
+func (m *Map) Table() string {
+	return m.tableName
 }
 
-func (d *Map) Keys() []string {
+func (m *Map) Keys() []string {
 	return []string{
 		"name",
 	}
 }
 
-func (d *Map) Transaction(ctx context.Context) (context.Context, *MapTx, error) {
+func (m *Map) Transaction(ctx context.Context) (context.Context, *Map, error) {
+	if m.tx != nil {
+		tx := transaction(ctx)
+		if tx == nil {
+			return contextWithTransaction(ctx, m.tx), m, nil
+		}
+		return ctx, m, nil
+	}
+
 	tx := transaction(ctx)
 	if tx == nil {
-		tx, err := d.Bome.BeginTx()
+		tx, err := m.DB.BeginTx()
 		if err != nil {
 			return ctx, nil, err
 		}
 
 		newCtx := contextWithTransaction(ctx, tx)
-		return newCtx, &MapTx{
-			tableName: d.tableName,
+		return newCtx, &Map{
+			tableName: m.tableName,
 			tx:        tx,
+			dialect:   m.dialect,
 		}, nil
 	}
 
-	return ctx, &MapTx{
-		tableName: d.tableName,
-		tx:        tx.clone(d.Bome),
-	}, nil
-}
-
-func (d *Map) BeginTransaction() (*MapTx, error) {
-	tx, err := d.BeginTx()
-	if err != nil {
-		return nil, err
-	}
-
-	return &MapTx{
-		tableName: d.tableName,
+	return ctx, &Map{
+		tableName: m.tableName,
 		tx:        tx,
+		dialect:   m.dialect,
 	}, nil
 }
 
-func (d *Map) ContinueTransaction(tx *TX) *MapTx {
-	return &MapTx{
-		tableName: d.tableName,
-		tx:        tx.clone(d.Bome),
+func (m *Map) SwitchToTransactionMode(tx *TX) *Map {
+	return &Map{
+		tableName: m.tableName,
+		tx:        tx,
+		dialect:   m.dialect,
 	}
 }
 
-func (d *Map) Client() Client {
-	return d.Bome
+func (m *Map) Client() Client {
+	if m.tx != nil {
+		return m.tx
+	}
+	return m.DB
 }
 
-func (d *Map) Save(entry *MapEntry) error {
-	return d.Client().SQLExec("insert into $table$ values (?, ?);", entry.Key, entry.Value)
+func (m *Map) Save(entry *MapEntry) error {
+	return m.Client().Exec("insert into $table$ values (?, ?);", entry.Key, entry.Value).Error
 }
 
-func (d *Map) Update(entry *MapEntry) error {
-	return d.Client().SQLExec("update $table$ set value=? where name=?;", entry.Value, entry.Key)
+func (m *Map) Update(entry *MapEntry) error {
+	return m.Client().Exec("update $table$ set value=? where name=?;", entry.Value, entry.Key).Error
 }
 
-func (d *Map) Upsert(entry *MapEntry) error {
-	err := d.Save(entry)
+func (m *Map) Upsert(entry *MapEntry) error {
+	err := m.Save(entry)
 	if !IsPrimaryKeyConstraintError(err) {
 		return err
 	}
-	return d.Update(entry)
+	return m.Update(entry)
 }
 
-func (d *Map) Get(key string) (string, error) {
-	o, err := d.Client().SQLQueryFirst("select value from $table$ where name=?;", StringScanner, key)
+func (m *Map) Get(key string) (string, error) {
+	o, err := m.Client().QueryFirst("select value from $table$ where name=?;", StringScanner, key)
 	if err != nil {
 		return "", err
 	}
 	return o.(string), nil
 }
 
-func (d *Map) Size(key string) (int64, error) {
-	o, err := d.Client().SQLQueryFirst("select coalesce(length(value), 0) from $table$ where name=?;", IntScanner, key)
+func (m *Map) Size(key string) (int64, error) {
+	o, err := m.Client().QueryFirst("select coalesce(length(value), 0) from $table$ where name=?;", IntScanner, key)
 	if err != nil {
 		return 0, err
 	}
 	return o.(int64), nil
 }
 
-func (d *Map) TotalSize() (int64, error) {
-	o, err := d.Client().SQLQueryFirst("select coalesce(sum(length(value)), 0) from $table$;", IntScanner)
+func (m *Map) TotalSize() (int64, error) {
+	o, err := m.Client().QueryFirst("select coalesce(sum(length(value)), 0) from $table$;", IntScanner)
 	if err != nil {
 		return 0, err
 	}
 	return o.(int64), nil
 }
 
-func (d *Map) Contains(key string) (bool, error) {
-	res, err := d.Client().SQLQueryFirst("select 1 from $table$ where name=?;", BoolScanner, key)
+func (m *Map) Contains(key string) (bool, error) {
+	res, err := m.Client().QueryFirst("select 1 from $table$ where name=?;", BoolScanner, key)
 	if err != nil {
 		if IsNotFound(err) {
 			return false, nil
@@ -116,8 +119,8 @@ func (d *Map) Contains(key string) (bool, error) {
 	return res.(bool), nil
 }
 
-func (d *Map) Range(offset, count int) ([]*MapEntry, error) {
-	c, err := d.Client().SQLQuery("select * from $table$ limit ?, ?;", MapEntryScanner, offset, count)
+func (m *Map) Range(offset, count int) ([]*MapEntry, error) {
+	c, err := m.Client().Query("select * from $table$ limit ?, ?;", MapEntryScanner, offset, count)
 	if err != nil {
 		return nil, err
 	}
@@ -138,41 +141,18 @@ func (d *Map) Range(offset, count int) ([]*MapEntry, error) {
 	return entries, nil
 }
 
-func (d *Map) Delete(key string) error {
-	return d.Client().SQLExec("delete from $table$ where name=?;", key)
+func (m *Map) Delete(key string) error {
+	return m.Client().Exec("delete from $table$ where name=?;", key).Error
 }
 
-func (d *Map) List() (Cursor, error) {
-	return d.Client().SQLQuery("select * from $table$;", MapEntryScanner)
+func (m *Map) List() (Cursor, error) {
+	return m.Client().Query("select * from $table$;", MapEntryScanner)
 }
 
-func (d *Map) Clear() error {
-	return d.Client().SQLExec("delete from $table$;")
+func (m *Map) Clear() error {
+	return m.Client().Exec("delete from $table$;").Error
 }
 
-func (d *Map) Close() error {
-	return d.Bome.sqlDb.Close()
-}
-
-// NewMap creates MySQL wrapped map
-func NewMap(db *sql.DB, dialect string, tableName string) (*Map, error) {
-	d := new(Map)
-	var err error
-
-	if dialect == SQLite3 {
-		d.Bome, err = NewLite(db)
-	} else if dialect == MySQL {
-		d.Bome, err = New(db)
-	} else {
-		return nil, DialectNotSupported
-	}
-
-	if err != nil {
-		return nil, err
-	}
-
-	d.SetTableName(escaped(tableName)).
-		AddTableDefinition(
-			"create table if not exists $table$ (name varchar(255) not null primary key, value longtext not null);")
-	return d, d.Init()
+func (m *Map) Close() error {
+	return m.DB.sqlDb.Close()
 }

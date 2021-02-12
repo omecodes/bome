@@ -2,12 +2,13 @@ package bome
 
 import (
 	"context"
-	"database/sql"
 	"log"
 )
 
 type List struct {
-	*Bome
+	*DB
+	tx        *TX
+	dialect   string
 	tableName string
 }
 
@@ -21,56 +22,61 @@ func (l *List) Keys() []string {
 	}
 }
 
-func (l *List) Transaction(ctx context.Context) (context.Context, *ListTx, error) {
+func (l *List) Transaction(ctx context.Context) (context.Context, *List, error) {
+	if l.tx != nil {
+		tx := transaction(ctx)
+		if tx == nil {
+			return contextWithTransaction(ctx, l.tx), l, nil
+		}
+		return ctx, l, nil
+	}
+
 	tx := transaction(ctx)
 	if tx == nil {
-		tx, err := l.Bome.BeginTx()
+		tx, err := l.DB.BeginTx()
 		if err != nil {
 			return ctx, nil, err
 		}
 
 		newCtx := contextWithTransaction(ctx, tx)
-		return newCtx, &ListTx{
+		return newCtx, &List{
+			dialect:   l.dialect,
 			tableName: l.tableName,
 			tx:        tx,
 		}, nil
 	}
 
-	return ctx, &ListTx{
-		tableName: l.tableName,
-		tx:        tx.clone(l.Bome),
-	}, nil
-}
-
-func (l *List) BeginTransaction() (*ListTx, error) {
-	tx, err := l.BeginTx()
-	if err != nil {
-		return nil, err
-	}
-
-	return &ListTx{
+	return ctx, &List{
+		dialect:   l.dialect,
 		tableName: l.tableName,
 		tx:        tx,
 	}, nil
 }
 
-func (l *List) ContinueTransaction(tx *TX) *ListTx {
-	return &ListTx{
+func (l *List) SwitchToTransactionMode(tx *TX) *List {
+	return &List{
 		tableName: l.tableName,
-		tx:        tx.clone(l.Bome),
+		tx:        tx,
+		dialect:   l.dialect,
 	}
 }
 
 func (l *List) Client() Client {
-	return l.Bome
+	if l.tx != nil {
+		return l.tx
+	}
+	return l.DB
 }
 
 func (l *List) Save(entry *ListEntry) error {
-	return l.Client().SQLExec("insert into $table$ values (?, ?);", entry.Index, entry.Value)
+	if entry.Index > 0 {
+		return l.Client().Exec("insert into $table$ values (?, ?);", entry.Index, entry.Value).Error
+	}
+	return l.Client().Exec("insert into $table$ (value) values (?);", entry.Value).Error
 }
 
 func (l *List) Update(entry *ListEntry) error {
-	return l.Client().SQLExec("update $table$ set value=? where ind=?;", entry.Value, entry.Index)
+	return l.Client().Exec("update $table$ set value=? where ind=?;", entry.Value, entry.Index).Error
 }
 
 func (l *List) Upsert(entry *ListEntry) error {
@@ -82,11 +88,11 @@ func (l *List) Upsert(entry *ListEntry) error {
 }
 
 func (l *List) Append(entry *ListEntry) error {
-	return l.Client().SQLExec("insert into $table$ (value) values (?);", entry.Value)
+	return l.Client().Exec("insert into $table$ (value) values (?);", entry.Value).Error
 }
 
 func (l *List) GetAt(index int64) (*ListEntry, error) {
-	o, err := l.Client().SQLQueryFirst("select * from $table$ where ind=?;", ListEntryScanner, index)
+	o, err := l.Client().QueryFirst("select * from $table$ where ind=?;", ListEntryScanner, index)
 	if err != nil {
 		return nil, err
 	}
@@ -94,7 +100,7 @@ func (l *List) GetAt(index int64) (*ListEntry, error) {
 }
 
 func (l *List) MinIndex() (int64, error) {
-	res, err := l.Client().SQLQueryFirst("select min(ind) from $table$;", IntScanner)
+	res, err := l.Client().QueryFirst("select min(ind) from $table$;", IntScanner)
 	if err != nil {
 		return 0, err
 	}
@@ -102,7 +108,7 @@ func (l *List) MinIndex() (int64, error) {
 }
 
 func (l *List) MaxIndex() (int64, error) {
-	res, err := l.Client().SQLQueryFirst("select max(ind) from $table$;", IntScanner)
+	res, err := l.Client().QueryFirst("select max(ind) from $table$;", IntScanner)
 	if err != nil {
 		return 0, err
 	}
@@ -110,7 +116,7 @@ func (l *List) MaxIndex() (int64, error) {
 }
 
 func (l *List) Count() (int64, error) {
-	res, err := l.Client().SQLQueryFirst("select count(ind) from $table$;", IntScanner)
+	res, err := l.Client().QueryFirst("select count(ind) from $table$;", IntScanner)
 	if err != nil {
 		return 0, err
 	}
@@ -118,7 +124,7 @@ func (l *List) Count() (int64, error) {
 }
 
 func (l *List) Size(index int64) (int64, error) {
-	o, err := l.Client().SQLQueryFirst("select coalesce(length(value)), 0) from $table$ where ind=?;", IntScanner, index)
+	o, err := l.Client().QueryFirst("select coalesce(length(value)), 0) from $table$ where ind=?;", IntScanner, index)
 	if err != nil {
 		return 0, err
 	}
@@ -126,7 +132,7 @@ func (l *List) Size(index int64) (int64, error) {
 }
 
 func (l *List) TotalSize() (int64, error) {
-	o, err := l.Client().SQLQueryFirst("select coalesce(sum(length(value)), 0) from $table$;", IntScanner)
+	o, err := l.Client().QueryFirst("select coalesce(sum(length(value)), 0) from $table$;", IntScanner)
 	if err != nil {
 		return 0, err
 	}
@@ -134,7 +140,7 @@ func (l *List) TotalSize() (int64, error) {
 }
 
 func (l *List) GetNextFromSeq(index int64) (*ListEntry, error) {
-	o, err := l.Client().SQLQueryFirst("select * from $table$ where ind>? order by ind;", ListEntryScanner, index)
+	o, err := l.Client().QueryFirst("select * from $table$ where ind>? order by ind;", ListEntryScanner, index)
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +148,7 @@ func (l *List) GetNextFromSeq(index int64) (*ListEntry, error) {
 }
 
 func (l *List) RangeFromIndex(index int64, offset, count int) ([]*ListEntry, error) {
-	c, err := l.Client().SQLQuery("select * from $table$ where ind>? order by ind limit ?, ?;", ListEntryScanner, index, offset, count)
+	c, err := l.Client().Query("select * from $table$ where ind>? order by ind limit ?, ?;", ListEntryScanner, index, offset, count)
 	if err != nil {
 		return nil, err
 	}
@@ -164,7 +170,7 @@ func (l *List) RangeFromIndex(index int64, offset, count int) ([]*ListEntry, err
 }
 
 func (l *List) Range(offset, count int) ([]*ListEntry, error) {
-	c, err := l.Client().SQLQuery("select * from $table$ order by ind limit ?, ?;", ListEntryScanner, offset, count)
+	c, err := l.Client().Query("select * from $table$ order by ind limit ?, ?;", ListEntryScanner, offset, count)
 	if err != nil {
 		return nil, err
 	}
@@ -192,13 +198,13 @@ func (l *List) IndexInRange(after, before int64) (Cursor, int64, error) {
 		c     Cursor
 	)
 
-	o, err := l.Client().SQLQueryFirst("select count(ind) from $table$ where ind > ? and ind < ?;", IntScanner, after, before)
+	o, err := l.Client().QueryFirst("select count(ind) from $table$ where ind > ? and ind < ?;", IntScanner, after, before)
 	if err != nil {
 		return nil, 0, err
 	}
 	total = o.(int64)
 
-	c, err = l.Client().SQLQuery("select * from $table$ where ind > ? and ind < ?;", ListEntryScanner, after, before)
+	c, err = l.Client().Query("select * from $table$ where ind > ? and ind < ?;", ListEntryScanner, after, before)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -207,58 +213,33 @@ func (l *List) IndexInRange(after, before int64) (Cursor, int64, error) {
 }
 
 func (l *List) IndexBefore(index int64) (Cursor, int64, error) {
-	o, err := l.Client().SQLQueryFirst("select count(ind) from $table$ where ind < ?;", IntScanner, index)
+	o, err := l.Client().QueryFirst("select count(ind) from $table$ where ind < ?;", IntScanner, index)
 	if err != nil {
 		return nil, 0, err
 	}
 	total := o.(int64)
-	cursor, err := l.Client().SQLQuery("select * from $table$ where ind<? order by ind;", ListEntryScanner, index)
+	cursor, err := l.Client().Query("select * from $table$ where ind<? order by ind;", ListEntryScanner, index)
 	return cursor, total, err
 }
 
 func (l *List) IndexAfter(index int64) (Cursor, int64, error) {
-	o, err := l.Client().SQLQueryFirst("select count(ind) from $table$ where ind > ?;", IntScanner, index)
+	o, err := l.Client().QueryFirst("select count(ind) from $table$ where ind>?;", IntScanner, index)
 	if err != nil {
 		return nil, 0, err
 	}
 	total := o.(int64)
-	cursor, err := l.Client().SQLQuery("select * from $table$ where ind<? order by ind;", ListEntryScanner, index)
+	cursor, err := l.Client().Query("select * from $table$ where ind>? order by ind;", ListEntryScanner, index)
 	return cursor, total, err
 }
 
 func (l *List) Delete(index int64) error {
-	return l.Client().SQLExec("delete from $table$ where ind=?;", index)
+	return l.Client().Exec("delete from $table$ where ind=?;", index).Error
 }
 
 func (l *List) Clear() error {
-	return l.Client().SQLExec("delete from $table$;")
+	return l.Client().Exec("delete from $table$;").Error
 }
 
 func (l *List) Close() error {
-	return l.Bome.sqlDb.Close()
-}
-
-// NewList creates MySQL wrapped list
-func NewList(db *sql.DB, dialect string, tableName string) (*List, error) {
-	d := new(List)
-	d.tableName = tableName
-	var err error
-
-	if dialect == SQLite3 {
-		d.Bome, err = NewLite(db)
-	} else if dialect == MySQL {
-		d.Bome, err = New(db)
-	} else {
-		return nil, DialectNotSupported
-	}
-
-	if err != nil {
-		return nil, err
-	}
-
-	d.SetTableName(escaped(tableName)).
-		AddTableDefinition(
-			"create table if not exists $table$ (ind bigint not null primary key $auto_increment$, value longtext not null);")
-	err = d.init()
-	return d, err
+	return l.DB.sqlDb.Close()
 }

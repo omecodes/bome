@@ -31,11 +31,12 @@ func initDbMap(t *testing.T) {
 		_, err = db.Exec("drop table if exists map")
 		So(err, ShouldBeNil)
 
-		dbMap, err = NewMap(db, "unsupported", "map")
+		builder := &Builder{}
+		dbMap, err = builder.SetConn(db).SetDialect("unsupported").SetTableName("map").Map()
 		So(err, ShouldNotBeNil)
 		So(dbMap, ShouldBeNil)
 
-		dbMap, err = NewMap(db, testDialect, "map")
+		dbMap, err = builder.SetConn(db).SetDialect(testDialect).SetTableName("map").Map()
 		So(err, ShouldBeNil)
 		So(dbMap, ShouldNotBeNil)
 	}
@@ -54,7 +55,7 @@ func TestDict_Save(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		err = dbMap.Save(&mapEntry1)
-		So(err, ShouldBeNil)
+		So(err, ShouldNotBeNil)
 
 		err = dbMap.Save(&mapEntry2)
 		So(err, ShouldBeNil)

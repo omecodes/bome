@@ -2,14 +2,15 @@ package bome
 
 import (
 	"context"
-	"database/sql"
 	"log"
 )
 
 // DoubleMap is a double key value map manager an SQL table
 type DoubleMap struct {
 	tableName string
-	*Bome
+	dialect   string
+	tx        *TX
+	*DB
 }
 
 func (s *DoubleMap) Table() string {
@@ -22,56 +23,59 @@ func (s *DoubleMap) Keys() []string {
 	}
 }
 
-func (s *DoubleMap) Transaction(ctx context.Context) (context.Context, *DoubleMapTx, error) {
+func (s *DoubleMap) Transaction(ctx context.Context) (context.Context, *DoubleMap, error) {
+	if s.tx != nil {
+		tx := transaction(ctx)
+		if tx == nil {
+			return contextWithTransaction(ctx, s.tx), s, nil
+		}
+		return ctx, s, nil
+	}
+
 	tx := transaction(ctx)
 	if tx == nil {
-		tx, err := s.Bome.BeginTx()
+		tx, err := s.DB.BeginTx()
 		if err != nil {
 			return ctx, nil, err
 		}
 
 		newCtx := contextWithTransaction(ctx, tx)
-		return newCtx, &DoubleMapTx{
+		return newCtx, &DoubleMap{
 			tableName: s.tableName,
 			tx:        tx,
+			dialect:   s.dialect,
 		}, nil
 	}
 
-	return ctx, &DoubleMapTx{
-		tableName: s.tableName,
-		tx:        tx.clone(s.Bome),
-	}, nil
-}
-
-func (s *DoubleMap) BeginTransaction() (*DoubleMapTx, error) {
-	tx, err := s.Bome.BeginTx()
-	if err != nil {
-		return nil, err
-	}
-
-	return &DoubleMapTx{
+	return ctx, &DoubleMap{
 		tableName: s.tableName,
 		tx:        tx,
+		dialect:   s.dialect,
 	}, nil
 }
 
-func (s *DoubleMap) ContinueTransaction(tx *TX) *DoubleMapTx {
-	return &DoubleMapTx{
-		tx: tx.clone(s.Bome),
+func (s *DoubleMap) SwitchToTransactionMode(tx *TX) *DoubleMap {
+	return &DoubleMap{
+		tableName: s.tableName,
+		tx:        tx,
+		dialect:   s.dialect,
 	}
 }
 
 func (s *DoubleMap) Client() Client {
-	return s.Bome
+	if s.tx != nil {
+		return s.tx
+	}
+	return s.DB
 }
 
 func (s *DoubleMap) Contains(firstKey, secondKey string) (bool, error) {
-	o, err := s.Client().SQLQueryFirst("select 1 from $table$ where first_key=? and second_key=?;", BoolScanner, firstKey, secondKey)
+	o, err := s.Client().QueryFirst("select 1 from $table$ where first_key=? and second_key=?;", BoolScanner, firstKey, secondKey)
 	return o.(bool), err
 }
 
 func (s *DoubleMap) Count() (int, error) {
-	o, err := s.Client().SQLQueryFirst("select count(*) from $table$;", IntScanner)
+	o, err := s.Client().QueryFirst("select count(*) from $table$;", IntScanner)
 	if err != nil {
 		return 0, err
 	}
@@ -79,7 +83,7 @@ func (s *DoubleMap) Count() (int, error) {
 }
 
 func (s *DoubleMap) CountForFirstKey(key string) (int, error) {
-	o, err := s.Client().SQLQueryFirst("select count(*) from $table$ where first_key=?;", IntScanner, key)
+	o, err := s.Client().QueryFirst("select count(*) from $table$ where first_key=?;", IntScanner, key)
 	if err != nil {
 		return 0, err
 	}
@@ -87,7 +91,7 @@ func (s *DoubleMap) CountForFirstKey(key string) (int, error) {
 }
 
 func (s *DoubleMap) CountForSecondKey(key string) (int, error) {
-	o, err := s.Client().SQLQueryFirst("select count(*) from $table$ where second_key=?;", IntScanner, key)
+	o, err := s.Client().QueryFirst("select count(*) from $table$ where second_key=?;", IntScanner, key)
 	if err != nil {
 		return 0, err
 	}
@@ -95,7 +99,7 @@ func (s *DoubleMap) CountForSecondKey(key string) (int, error) {
 }
 
 func (s *DoubleMap) Size(firstKey string, secondKey string) (int64, error) {
-	o, err := s.Client().SQLQueryFirst("select coalesce(length(value), 0) from $table$ where first_key=? and second_key=?;", IntScanner, firstKey, secondKey)
+	o, err := s.Client().QueryFirst("select coalesce(length(value), 0) from $table$ where first_key=? and second_key=?;", IntScanner, firstKey, secondKey)
 	if err != nil {
 		return 0, err
 	}
@@ -103,7 +107,7 @@ func (s *DoubleMap) Size(firstKey string, secondKey string) (int64, error) {
 }
 
 func (s *DoubleMap) TotalSize() (int64, error) {
-	o, err := s.Client().SQLQueryFirst("select coalesce(sum(length(value)), 0) from $table$;", IntScanner)
+	o, err := s.Client().QueryFirst("select coalesce(sum(length(value)), 0) from $table$;", IntScanner)
 	if err != nil {
 		return 0, err
 	}
@@ -111,11 +115,11 @@ func (s *DoubleMap) TotalSize() (int64, error) {
 }
 
 func (s *DoubleMap) Save(entry *DoubleMapEntry) error {
-	return s.Client().SQLExec("insert into $table$ values (?, ?, ?);", entry.FirstKey, entry.SecondKey, entry.Value)
+	return s.Client().Exec("insert into $table$ values (?, ?, ?);", entry.FirstKey, entry.SecondKey, entry.Value).Error
 }
 
 func (s *DoubleMap) Update(entry *DoubleMapEntry) error {
-	return s.Client().SQLExec("update $table$ set value=? where first_key=? and second_key=?;", entry.Value, entry.FirstKey, entry.SecondKey)
+	return s.Client().Exec("update $table$ set value=? where first_key=? and second_key=?;", entry.Value, entry.FirstKey, entry.SecondKey).Error
 }
 
 func (s *DoubleMap) Upsert(entry *DoubleMapEntry) error {
@@ -127,7 +131,7 @@ func (s *DoubleMap) Upsert(entry *DoubleMapEntry) error {
 }
 
 func (s *DoubleMap) Get(firstKey, secondKey string) (string, error) {
-	o, err := s.Client().SQLQueryFirst("select value from $table$ where first_key=? and second_key=?;", StringScanner, firstKey, secondKey)
+	o, err := s.Client().QueryFirst("select value from $table$ where first_key=? and second_key=?;", StringScanner, firstKey, secondKey)
 	if err != nil {
 		return "", err
 	}
@@ -135,7 +139,7 @@ func (s *DoubleMap) Get(firstKey, secondKey string) (string, error) {
 }
 
 func (s *DoubleMap) RangeMatchingFirstKey(key string, offset, count int) ([]*MapEntry, error) {
-	c, err := s.Client().SQLQuery("select second_key, value from $table$ where first_key=? limit ?, ?;", MapEntryScanner, key, offset, count)
+	c, err := s.Client().Query("select second_key, value from $table$ where first_key=? limit ?, ?;", MapEntryScanner, key, offset, count)
 	if err != nil {
 		return nil, err
 	}
@@ -159,7 +163,7 @@ func (s *DoubleMap) RangeMatchingFirstKey(key string, offset, count int) ([]*Map
 }
 
 func (s *DoubleMap) RangeMatchingSecondKey(key string, offset, count int) ([]*MapEntry, error) {
-	c, err := s.Client().SQLQuery("select first_key, value from $table$ where second_key=? limit ?, ?;", MapEntryScanner, key, offset, count)
+	c, err := s.Client().Query("select first_key, value from $table$ where second_key=? limit ?, ?;", MapEntryScanner, key, offset, count)
 	if err != nil {
 		return nil, err
 	}
@@ -182,7 +186,7 @@ func (s *DoubleMap) RangeMatchingSecondKey(key string, offset, count int) ([]*Ma
 }
 
 func (s *DoubleMap) Range(offset, count int) ([]*DoubleMapEntry, error) {
-	c, err := s.Client().SQLQuery("select * from $table$ limit ?, ?;", DoubleMapEntryScanner, offset, count)
+	c, err := s.Client().Query("select * from $table$ limit ?, ?;", DoubleMapEntryScanner, offset, count)
 	if err != nil {
 		return nil, err
 	}
@@ -205,63 +209,33 @@ func (s *DoubleMap) Range(offset, count int) ([]*DoubleMapEntry, error) {
 }
 
 func (s *DoubleMap) GetForFirst(firstKey string) (Cursor, error) {
-	return s.Client().SQLQuery("select second_key, value from $table$ where first_key=?;", MapEntryScanner, firstKey)
+	return s.Client().Query("select second_key, value from $table$ where first_key=?;", MapEntryScanner, firstKey)
 }
 
 func (s *DoubleMap) GetForSecond(secondKey string) (Cursor, error) {
-	return s.Client().SQLQuery("select first_key, value from $table$ where second_key=?;", MapEntryScanner, secondKey)
+	return s.Client().Query("select first_key, value from $table$ where second_key=?;", MapEntryScanner, secondKey)
 }
 
 func (s *DoubleMap) GetAll() (Cursor, error) {
-	return s.Client().SQLQuery("select * from $table$;", DoubleMapEntryScanner)
+	return s.Client().Query("select * from $table$;", DoubleMapEntryScanner)
 }
 
 func (s *DoubleMap) Delete(firstKey, secondKey string) error {
-	return s.Client().SQLExec("delete from $table$ where first_key=? and second_key=?;", firstKey, secondKey)
+	return s.Client().Exec("delete from $table$ where first_key=? and second_key=?;", firstKey, secondKey).Error
 }
 
 func (s *DoubleMap) DeleteAllMatchingFirstKey(firstKey string) error {
-	return s.Client().SQLExec("delete from $table$ where first_key=?;", firstKey)
+	return s.Client().Exec("delete from $table$ where first_key=?;", firstKey).Error
 }
 
 func (s *DoubleMap) DeleteAllMatchingSecondKey(secondKey string) error {
-	return s.Client().SQLExec("delete from $table$ where second_key=?;", secondKey)
+	return s.Client().Exec("delete from $table$ where second_key=?;", secondKey).Error
 }
 
 func (s *DoubleMap) Clear() error {
-	return s.Client().SQLExec("delete from $table$;")
+	return s.Client().Exec("delete from $table$;").Error
 }
 
 func (s *DoubleMap) Close() error {
-	return s.Bome.sqlDb.Close()
-}
-
-// NewDoubleMap creates MySQL wrapped DoubleMap
-func NewDoubleMap(db *sql.DB, dialect string, tableName string) (*DoubleMap, error) {
-	d := new(DoubleMap)
-	d.tableName = tableName
-	var err error
-
-	if dialect == SQLite3 {
-		d.Bome, err = NewLite(db)
-
-	} else if dialect == MySQL {
-		d.Bome, err = New(db)
-
-	} else {
-		return nil, DialectNotSupported
-	}
-
-	d.SetTableName(tableName).
-		AddTableDefinition(
-			"create table if not exists $table$ (first_key varchar(255) not null, second_key varchar(255) not null, value longtext not null);",
-		)
-
-	err = d.Init()
-	if err != nil {
-		return nil, err
-	}
-
-	err = d.AddUniqueIndex(Index{Name: "unique_keys", Table: "$table$", Fields: []string{"first_key", "second_key"}}, false)
-	return d, err
+	return s.DB.sqlDb.Close()
 }

@@ -31,7 +31,7 @@ func init() {
 	_ = os.Remove(testDBPath)
 }
 
-func initJsonDoubleDbMap(t *testing.T) {
+func initJsonDoubleDbMap() {
 	if dbJsonDoubleMap == nil {
 		var err error
 		db, err = sql.Open(testDialect, testDBPath)
@@ -41,11 +41,13 @@ func initJsonDoubleDbMap(t *testing.T) {
 		_, err = db.Exec("drop table if exists jd_map;")
 		So(err, ShouldBeNil)
 
-		dbJsonDoubleMap, err = NewJSONDoubleMap(db, "unsupported", "d_map")
+		builder := &Builder{}
+
+		dbJsonDoubleMap, err = builder.SetConn(db).SetDialect("unsupported").SetTableName("jd_map").JSONDoubleMap()
 		So(err, ShouldNotBeNil)
 		So(dbJsonDoubleMap, ShouldBeNil)
 
-		dbJsonDoubleMap, err = NewJSONDoubleMap(db, testDialect, "jd_map")
+		dbJsonDoubleMap, err = builder.SetConn(db).SetDialect(testDialect).SetTableName("jd_map").JSONDoubleMap()
 		So(err, ShouldBeNil)
 		So(dbJsonDoubleMap, ShouldNotBeNil)
 	}
@@ -53,14 +55,13 @@ func initJsonDoubleDbMap(t *testing.T) {
 
 func TestNewJSONDoubleMapDB(t *testing.T) {
 	Convey("Init database", t, func() {
-		initJsonDoubleDbMap(t)
+		initJsonDoubleDbMap()
 	})
 }
 
 func TestJsonDoubleMap_Save(t *testing.T) {
 	Convey("Save double map entries", t, func() {
-		initJsonDoubleDbMap(t)
-
+		initJsonDoubleDbMap()
 		var err error
 		err = dbJsonDoubleMap.Save(&person1)
 		So(err, ShouldBeNil)
@@ -74,212 +75,217 @@ func TestJsonDoubleMap_Save(t *testing.T) {
 }
 
 func TestJsonDoubleMap_EditAt(t *testing.T) {
-	if jsonTestEnabled {
-		Convey("Edit item", t, func() {
-			err := dbJsonDoubleMap.EditAt("people", "akam", "$.address.commune", "yahou")
-			So(err, ShouldBeNil)
+	Convey("Edit item", t, func() {
+		initJsonDoubleDbMap()
+		err := dbJsonDoubleMap.EditAt("people", "akam", "$.address.commune", "yahou")
+		So(err, ShouldBeNil)
 
-			value, err := dbJsonDoubleMap.ExtractAt("people", "akam", "$.address.commune")
-			So(err, ShouldBeNil)
-			So(value, ShouldEqual, "yahou")
-		})
-	}
+		value, err := dbJsonDoubleMap.ExtractAt("people", "akam", "$.address.commune")
+		So(err, ShouldBeNil)
+		So(value, ShouldEqual, "yahou")
+	})
 }
 
 func TestJsonDoubleMap_EditAll(t *testing.T) {
-	if jsonTestEnabled {
-		Convey("Edit item", t, func() {
-			err := dbJsonDoubleMap.EditAll("$.address.country", StringExpr("Côte d'Ivoire"))
+	Convey("Edit item", t, func() {
+		initJsonDoubleDbMap()
+		err := dbJsonDoubleMap.EditAll("$.address.country", StringExpr("CoteIvoire"))
+		So(err, ShouldBeNil)
+
+		cursor, err := dbJsonDoubleMap.Search(JsonAtEq("$.address.country", StringExpr("CoteIvoire")), DoubleMapEntryScanner)
+		So(err, ShouldBeNil)
+		So(cursor, ShouldNotBeNil)
+		defer func() {
+			_ = cursor.Close()
+		}()
+
+		var entries []*DoubleMapEntry
+		for cursor.HasNext() {
+			o, err := cursor.Next()
 			So(err, ShouldBeNil)
 
-			cursor, err := dbJsonDoubleMap.Search(JsonAtEq("$.address.country", StringExpr("Côte d'Ivoire")), DoubleMapEntryScanner)
-			So(err, ShouldBeNil)
-			So(cursor, ShouldNotBeNil)
-			defer cursor.Close()
-
-			var entries []*DoubleMapEntry
-			for cursor.HasNext() {
-				o, err := cursor.Next()
-				So(err, ShouldBeNil)
-
-				entry := o.(*DoubleMapEntry)
-				entries = append(entries, entry)
-			}
-			So(entries, ShouldHaveLength, 3)
-		})
-	}
+			entry := o.(*DoubleMapEntry)
+			entries = append(entries, entry)
+		}
+		So(entries, ShouldHaveLength, 3)
+	})
 }
 
 func TestJsonDoubleMap_EditAllMatching(t *testing.T) {
-	if jsonTestEnabled {
-		Convey("Edit item", t, func() {
-			err := dbJsonDoubleMap.EditAllMatching("$.family", JsonExpr(StringExpr("class"), StringExpr("youngsters")),
-				JsonAtLt("$.age", IntExpr(30)),
-			)
-			So(err, ShouldBeNil)
+	Convey("Edit item", t, func() {
+		initJsonDoubleDbMap()
+		err := dbJsonDoubleMap.EditAllMatching("$.family", JsonExpr(StringExpr("class"), StringExpr("youngsters")),
+			JsonAtLt("$.age", IntExpr(30)),
+		)
+		So(err, ShouldBeNil)
 
-			cursor, err := dbJsonDoubleMap.Search(JsonAtEq("$.family.class", StringExpr("youngsters")), DoubleMapEntryScanner)
-			So(err, ShouldBeNil)
-			So(cursor, ShouldNotBeNil)
-			defer cursor.Close()
+		cursor, err := dbJsonDoubleMap.Search(JsonAtEq("$.family.class", StringExpr("youngsters")), DoubleMapEntryScanner)
+		So(err, ShouldBeNil)
+		So(cursor, ShouldNotBeNil)
+		defer func() {
+			_ = cursor.Close()
+		}()
 
-			var entries []*DoubleMapEntry
-			for cursor.HasNext() {
-				o, err := cursor.Next()
-				So(err, ShouldBeNil)
-				entry := o.(*DoubleMapEntry)
-				entries = append(entries, entry)
-			}
-			So(entries, ShouldHaveLength, 2)
-		})
-	}
+		var entries []*DoubleMapEntry
+		for cursor.HasNext() {
+			o, err := cursor.Next()
+			So(err, ShouldBeNil)
+			entry := o.(*DoubleMapEntry)
+			entries = append(entries, entry)
+		}
+		So(entries, ShouldHaveLength, 2)
+	})
 }
 
 func TestJsonDoubleMap_ExtractAllString(t *testing.T) {
-	if jsonTestEnabled {
-		Convey("Extract string values", t, func() {
-			cursor, err := dbJsonDoubleMap.ExtractAll("$.address.commune", JsonAtEq("$.address.city", StringExpr("Abidjan")), StringScanner)
-			So(err, ShouldBeNil)
-			So(cursor, ShouldNotBeNil)
-			defer cursor.Close()
+	Convey("Extract string values", t, func() {
+		initJsonDoubleDbMap()
+		cursor, err := dbJsonDoubleMap.ExtractAll("$.address.commune", JsonAtEq("$.address.city", StringExpr("Abidjan")), StringScanner)
+		So(err, ShouldBeNil)
+		So(cursor, ShouldNotBeNil)
+		defer func() {
+			_ = cursor.Close()
+		}()
 
-			for cursor.HasNext() {
-				o, err := cursor.Next()
-				So(err, ShouldBeNil)
-				So(o, ShouldBeIn, "Bingerville", "Yopougon")
-			}
-		})
-	}
+		for cursor.HasNext() {
+			o, err := cursor.Next()
+			So(err, ShouldBeNil)
+			So(o, ShouldBeIn, "Bingerville", "Yopougon")
+		}
+	})
 }
 
 func TestJsonDoubleMap_ExtractAllInt(t *testing.T) {
-	if jsonTestEnabled {
-		Convey("Extract int values", t, func() {
-			cursor, err := dbJsonDoubleMap.ExtractAll("$.age", JsonAtEq("$.family.class", StringExpr("youngsters")), IntScanner)
-			So(err, ShouldBeNil)
-			So(cursor, ShouldNotBeNil)
-			defer cursor.Close()
+	Convey("Extract int values", t, func() {
+		initJsonDoubleDbMap()
+		cursor, err := dbJsonDoubleMap.ExtractAll("$.age", JsonAtEq("$.family.class", StringExpr("youngsters")), IntScanner)
+		So(err, ShouldBeNil)
+		So(cursor, ShouldNotBeNil)
+		defer func() {
+			_ = cursor.Close()
+		}()
 
-			for cursor.HasNext() {
-				o, err := cursor.Next()
-				So(err, ShouldBeNil)
-				So(o, ShouldBeLessThan, 30)
-			}
-		})
-	}
+		for cursor.HasNext() {
+			o, err := cursor.Next()
+			So(err, ShouldBeNil)
+			So(o, ShouldBeLessThan, 30)
+		}
+	})
 }
 
 func TestJsonDoubleMap_ExtractAt(t *testing.T) {
-	if jsonTestEnabled {
-		Convey("Edit item", t, func() {
-			value, err := dbJsonDoubleMap.ExtractAt("people", "zebou", "$.address.commune")
-			So(err, ShouldBeNil)
-			So(value, ShouldEqual, "Bingerville")
-		})
-	}
+	Convey("Edit item", t, func() {
+		initJsonDoubleDbMap()
+		value, err := dbJsonDoubleMap.ExtractAt("people", "zebou", "$.address.commune")
+		So(err, ShouldBeNil)
+		So(value, ShouldEqual, "Bingerville")
+	})
 }
 
 func TestJsonDoubleMap_SearchContainsPath(t *testing.T) {
-	if jsonTestEnabled {
-		Convey("Search in json all people with identified 'commune'", t, func() {
-			cursor, err := dbJsonDoubleMap.Search(
-				JsonContainsPath("$.address.commune"), DoubleMapEntryScanner,
-			)
+	Convey("Search in json all people with identified 'commune'", t, func() {
+		initJsonDoubleDbMap()
+		cursor, err := dbJsonDoubleMap.Search(
+			JsonContainsPath("$.address.commune"), DoubleMapEntryScanner,
+		)
 
+		So(err, ShouldBeNil)
+		So(cursor, ShouldNotBeNil)
+		defer func() {
+			_ = cursor.Close()
+		}()
+
+		var entries []*DoubleMapEntry
+		for cursor.HasNext() {
+			o, err := cursor.Next()
 			So(err, ShouldBeNil)
-			So(cursor, ShouldNotBeNil)
-			defer cursor.Close()
 
-			var entries []*DoubleMapEntry
-			for cursor.HasNext() {
-				o, err := cursor.Next()
-				So(err, ShouldBeNil)
-
-				entry := o.(*DoubleMapEntry)
-				entries = append(entries, entry)
-			}
-			So(entries, ShouldHaveLength, 3)
-		})
-	}
+			entry := o.(*DoubleMapEntry)
+			entries = append(entries, entry)
+		}
+		So(entries, ShouldHaveLength, 3)
+	})
 }
 
 func TestJsonDoubleMap_SearchAtContains(t *testing.T) {
-	if jsonTestEnabled {
-		Convey("Search in json all people with identified 'commune'", t, func() {
-			cursor, err := dbJsonDoubleMap.Search(
-				JsonAtContains("$.address.region", StringExpr("lagunes")), DoubleMapEntryScanner,
-			)
+	Convey("Search in json all people with identified 'commune'", t, func() {
+		initJsonDoubleDbMap()
+		cursor, err := dbJsonDoubleMap.Search(
+			JsonAtContains("$.address.region", StringExpr("lagunes")), DoubleMapEntryScanner,
+		)
 
+		So(err, ShouldBeNil)
+		So(cursor, ShouldNotBeNil)
+		defer func() {
+			_ = cursor.Close()
+		}()
+
+		var entries []*DoubleMapEntry
+		for cursor.HasNext() {
+			o, err := cursor.Next()
 			So(err, ShouldBeNil)
-			So(cursor, ShouldNotBeNil)
-			defer cursor.Close()
 
-			var entries []*DoubleMapEntry
-			for cursor.HasNext() {
-				o, err := cursor.Next()
-				So(err, ShouldBeNil)
-
-				entry := o.(*DoubleMapEntry)
-				entries = append(entries, entry)
-			}
-			So(entries, ShouldHaveLength, 3)
-		})
-	}
+			entry := o.(*DoubleMapEntry)
+			entries = append(entries, entry)
+		}
+		So(entries, ShouldHaveLength, 3)
+	})
 }
 
 func TestJsonDoubleMap_Range(t *testing.T) {
-	if jsonTestEnabled {
-		Convey("Get range", t, func() {
-			cursor, err := dbJsonDoubleMap.RangeOf(
-				JsonAtContains("$.address.region", StringExpr("lagunes")), DoubleMapEntryScanner, 0, 2,
-			)
+	Convey("Get range", t, func() {
+		initJsonDoubleDbMap()
+		cursor, err := dbJsonDoubleMap.RangeOf(
+			JsonAtContains("$.address.region", StringExpr("lagunes")), DoubleMapEntryScanner, 0, 2,
+		)
 
+		So(err, ShouldBeNil)
+		So(cursor, ShouldNotBeNil)
+		defer func() {
+			_ = cursor.Close()
+		}()
+
+		var entries []*DoubleMapEntry
+		for cursor.HasNext() {
+			o, err := cursor.Next()
 			So(err, ShouldBeNil)
-			So(cursor, ShouldNotBeNil)
-			defer cursor.Close()
 
-			var entries []*DoubleMapEntry
-			for cursor.HasNext() {
-				o, err := cursor.Next()
-				So(err, ShouldBeNil)
-
-				entry := o.(*DoubleMapEntry)
-				entries = append(entries, entry)
-			}
-			So(entries, ShouldHaveLength, 2)
-		})
-	}
+			entry := o.(*DoubleMapEntry)
+			entries = append(entries, entry)
+		}
+		So(entries, ShouldHaveLength, 2)
+	})
 }
 
 func TestJsonDoubleMap_SearchAtGt(t *testing.T) {
-	if jsonTestEnabled {
-		Convey("Search in json all people with identified 'commune'", t, func() {
-			cursor, err := dbJsonDoubleMap.Search(
-				JsonAtGt("$.age", IntExpr(29)), DoubleMapEntryScanner,
-			)
+	Convey("Search in json all people with identified 'commune'", t, func() {
+		initJsonDoubleDbMap()
+		cursor, err := dbJsonDoubleMap.Search(
+			JsonAtGt("$.age", IntExpr(29)), DoubleMapEntryScanner,
+		)
 
+		So(err, ShouldBeNil)
+		So(cursor, ShouldNotBeNil)
+		defer func() {
+			_ = cursor.Close()
+		}()
+
+		var entries []*DoubleMapEntry
+		for cursor.HasNext() {
+			o, err := cursor.Next()
 			So(err, ShouldBeNil)
-			So(cursor, ShouldNotBeNil)
-			defer cursor.Close()
 
-			var entries []*DoubleMapEntry
-			for cursor.HasNext() {
-				o, err := cursor.Next()
-				So(err, ShouldBeNil)
-
-				entry := o.(*DoubleMapEntry)
-				entries = append(entries, entry)
-			}
-			So(entries, ShouldHaveLength, 1)
-		})
-	}
+			entry := o.(*DoubleMapEntry)
+			entries = append(entries, entry)
+		}
+		So(entries, ShouldHaveLength, 1)
+	})
 }
 
 func TestJsonDoubleMap_Clear(t *testing.T) {
-	if jsonTestEnabled {
-		Convey("Clear all entries", t, func() {
-			err := dbJsonDoubleMap.Clear()
-			So(err, ShouldBeNil)
-		})
-	}
+	Convey("Clear all entries", t, func() {
+		initJsonDoubleDbMap()
+		err := dbJsonDoubleMap.Clear()
+		So(err, ShouldBeNil)
+	})
 }

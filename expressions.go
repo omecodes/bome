@@ -7,14 +7,25 @@ import (
 
 type Expression interface {
 	eval() string
+	setDialect(string)
 }
 
 type BoolExpr interface {
 	sql() string
+	setDialect(string)
+}
+
+type dialectValue struct {
+	dialect string
+}
+
+func (v *dialectValue) setDialect(dialect string) {
+	v.dialect = dialect
 }
 
 type stringExpression struct {
 	value string
+	dialectValue
 }
 
 func (s *stringExpression) eval() string {
@@ -23,6 +34,7 @@ func (s *stringExpression) eval() string {
 
 type intExpression struct {
 	value int64
+	dialectValue
 }
 
 func (s *intExpression) eval() string {
@@ -31,11 +43,13 @@ func (s *intExpression) eval() string {
 
 type jsonExpression struct {
 	expressions []Expression
+	dialectValue
 }
 
 func (s *jsonExpression) eval() string {
 	var values []string
 	for _, ex := range s.expressions {
+		ex.setDialect(s.dialectValue.dialect)
 		values = append(values, ex.eval())
 	}
 	return fmt.Sprintf("json_object(%s)", strings.Join(values, ","))
@@ -65,6 +79,7 @@ func FieldExpression(name string) Expression {
 
 type fieldExpression struct {
 	field string
+	dialectValue
 }
 
 func (e *fieldExpression) eval() string {
@@ -87,7 +102,7 @@ func And(conditions ...BoolExpr) BoolExpr {
 
 func Not(condition BoolExpr) BoolExpr {
 	return &not{
-		condition: condition,
+		e: condition,
 	}
 }
 
@@ -168,8 +183,8 @@ func JsonAtEndsWith(path string, e Expression) BoolExpr {
 
 func JsonAtEq(path string, e Expression) BoolExpr {
 	return &jsonAtEquals{
-		path:       path,
-		expression: e,
+		path: path,
+		e:    e,
 	}
 }
 
@@ -203,4 +218,12 @@ func JsonAtGe(path string, e Expression) BoolExpr {
 
 func EndsWith(e Expression) BoolExpr {
 	return &endsWith{e: e}
+}
+
+func True() BoolExpr {
+	return &trueExpr{}
+}
+
+func False() BoolExpr {
+	return &falseExpr{}
 }

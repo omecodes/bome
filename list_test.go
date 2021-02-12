@@ -31,11 +31,13 @@ func initList(t *testing.T) {
 		_, err = db.Exec("drop table if exists list")
 		So(err, ShouldBeNil)
 
-		list, err = NewList(db, "unsupported", "list")
+		builder := &Builder{}
+
+		list, err = builder.SetConn(db).SetTableName("list").SetDialect("unsupported").List()
 		So(err, ShouldNotBeNil)
 		So(list, ShouldBeNil)
 
-		list, err = NewList(db, testDialect, "list")
+		list, err = builder.SetConn(db).SetTableName("list").SetDialect(testDialect).List()
 		So(err, ShouldBeNil)
 		So(list, ShouldNotBeNil)
 	}
@@ -78,8 +80,9 @@ func TestListDB_GetAllFromSeq(t *testing.T) {
 	Convey("Get All from index 2", t, func() {
 		initList(t)
 
-		cursor, err := list.AllFromSeq(2)
+		cursor, total, err := list.IndexAfter(2)
 		So(err, ShouldBeNil)
+		So(total, ShouldEqual, 2)
 		So(cursor, ShouldNotBeNil)
 
 		var entries []*ListEntry

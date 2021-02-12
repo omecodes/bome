@@ -7,53 +7,60 @@ import (
 
 // TX is a transaction token
 type TX struct {
-	bome *Bome
+	db *DB
 	*sql.Tx
 }
 
-func (tx *TX) clone(bome *Bome) *TX {
+func (tx *TX) clone(db *DB) *TX {
 	return &TX{
-		bome: bome,
-		Tx:   tx.Tx,
+		db: db,
+		Tx: tx.Tx,
 	}
 }
 
-//SExec executes the statement saved as name
-func (tx *TX) SQLExec(query string, args ...interface{}) error {
-	for name, value := range tx.bome.vars {
+//Exec executes the statement saved as name
+func (tx *TX) Exec(query string, args ...interface{}) Result {
+	for name, value := range tx.db.vars {
 		query = strings.Replace(query, name, value, -1)
 	}
-	_, err := tx.Exec(query, args...)
-	return err
+
+	var r sql.Result
+	result := Result{}
+	r, result.Error = tx.Tx.Exec(query, args...)
+	if result.Error == nil && tx.db.dialect != SQLite3 {
+		result.LastInserted, _ = r.LastInsertId()
+		result.AffectedRows, _ = r.RowsAffected()
+	}
+	return result
 }
 
-//SQuery executes the query statement saved as name
-func (tx *TX) SQLQuery(query string, scannerName string, args ...interface{}) (Cursor, error) {
-	for name, value := range tx.bome.vars {
+//Query executes the query statement saved as name
+func (tx *TX) Query(query string, scannerName string, args ...interface{}) (Cursor, error) {
+	for name, value := range tx.db.vars {
 		query = strings.Replace(query, name, value, -1)
 	}
-	rows, err := tx.Query(query, args...)
+	rows, err := tx.Tx.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
-	scanner, err := tx.bome.findScanner(scannerName)
+	scanner, err := tx.db.findScanner(scannerName)
 	if err != nil {
 		return nil, err
 	}
 	return newCursor(rows, scanner), nil
 }
 
-// SQueryFirst get the first result of the query statement saved as name
-func (tx *TX) SQLQueryFirst(query string, scannerName string, args ...interface{}) (interface{}, error) {
-	for name, value := range tx.bome.vars {
+// QueryFirst get the first result of the query statement saved as name
+func (tx *TX) QueryFirst(query string, scannerName string, args ...interface{}) (interface{}, error) {
+	for name, value := range tx.db.vars {
 		query = strings.Replace(query, name, value, -1)
 	}
 
-	rows, err := tx.Query(query, args...)
+	rows, err := tx.Tx.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
-	scanner, err := tx.bome.findScanner(scannerName)
+	scanner, err := tx.db.findScanner(scannerName)
 	if err != nil {
 		return nil, err
 	}

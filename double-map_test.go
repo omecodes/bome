@@ -2,10 +2,11 @@ package bome
 
 import (
 	"database/sql"
-	_ "github.com/mattn/go-sqlite3"
-	. "github.com/smartystreets/goconvey/convey"
 	"os"
 	"testing"
+
+	_ "github.com/mattn/go-sqlite3"
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 var (
@@ -42,11 +43,13 @@ func initDoubleDbMap(t *testing.T) {
 		_, err = db.Exec("drop table if exists d_map")
 		So(err, ShouldBeNil)
 
-		dbDoubleMap, err = NewDoubleMap(db, "unsupported", "d_map")
+		builder := &Builder{}
+
+		dbDoubleMap, err = builder.SetConn(db).SetDialect("unsupported").SetTableName("d_map").DoubleMap()
 		So(err, ShouldNotBeNil)
 		So(dbDoubleMap, ShouldBeNil)
 
-		dbDoubleMap, err = NewDoubleMap(db, testDialect, "d_map")
+		dbDoubleMap, err = builder.SetConn(db).SetDialect(testDialect).SetTableName("d_map").DoubleMap()
 		So(err, ShouldBeNil)
 		So(dbDoubleMap, ShouldNotBeNil)
 	}
@@ -64,7 +67,7 @@ func TestDoubleMap_Save(t *testing.T) {
 		err = dbDoubleMap.Save(&doubleMapEntry12)
 		So(err, ShouldBeNil)
 		err = dbDoubleMap.Save(&doubleMapEntry12)
-		So(err, ShouldBeNil)
+		So(err, ShouldNotBeNil)
 
 		err = dbDoubleMap.Save(&doubleMapEntry2)
 		So(err, ShouldBeNil)

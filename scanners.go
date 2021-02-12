@@ -21,6 +21,9 @@ const (
 
 	//DoubleMapEntryScanner is the key for double map scanner
 	DoubleMapEntryScanner = "scanDoubleMapEntry"
+
+	//PairListEntryScanner is the key for pairs list scanner
+	PairListEntryScanner = "scanPairListEntry"
 )
 
 var defaultScanners = map[string]Scanner{
@@ -44,4 +47,5 @@ var defaultScanners = map[string]Scanner{
 	ListEntryScanner:      NewScannerFunc(scanListEntry),
 	MapEntryScanner:       NewScannerFunc(scanMapEntry),
 	DoubleMapEntryScanner: NewScannerFunc(scanDoubleMapEntry),
+	PairListEntryScanner:  NewScannerFunc(scanPairListEntry),
 }

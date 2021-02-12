@@ -17,10 +17,10 @@ const (
 
 	VarTable = "$table$"
 
-	// VarEngine is used to define prefix. Bome replaces it with the dialect engine value
+	// VarEngine is used to define prefix. DB replaces it with the dialect engine value
 	VarEngine = "$engine$"
 
-	// VarAutoIncrement is used set auto_increment to int field. Bome replaces it with the dialect proper value
+	// VarAutoIncrement is used set auto_increment to int field. DB replaces it with the dialect proper value
 	VarAutoIncrement = "$auto_increment$"
 
 	// VarLocate is the equivalent of string replace
@@ -34,8 +34,8 @@ type Result struct {
 	AffectedRows int64
 }
 
-// Bome is an SQL database driver
-type Bome struct {
+// DB is an SQL database wrapper
+type DB struct {
 	sqlDb                      *sql.DB
 	mux                        *sync.RWMutex
 	dialect                    string
@@ -51,23 +51,23 @@ type Bome struct {
 	initDone                   bool
 }
 
-// Open detects and creates an instance of Bome DB according to the dialect
-func Open(dsn string) (*Bome, error) {
+// Open detects and creates an instance of DB DB according to the dialect
+func Open(dsn string) (*DB, error) {
 	u, err := url.Parse(dsn)
 	if err != nil {
 		return nil, err
 	}
 
-	if u.Scheme == "sqlite3" {
-		db, err := sql.Open("sqlite3", strings.TrimPrefix(dsn, "sqlite3://"))
+	if u.Scheme == SQLite3 {
+		db, err := sql.Open(SQLite3, strings.TrimPrefix(dsn, "sqlite3://"))
 		if err != nil {
 			return nil, err
 		}
 
-		dbome := new(Bome)
+		dbome := new(DB)
 		dbome.sqlDb = db
 		dbome.isSQLite = true
-		dbome.dialect = "sqlite3"
+		dbome.dialect = SQLite3
 		dbome.SetVariable(VarLocate, "instr")
 		dbome.SetVariable(VarAutoIncrement, "AUTOINCREMENT")
 		dbome.SetVariable(VarEngine, "")
@@ -77,15 +77,15 @@ func Open(dsn string) (*Bome, error) {
 		dbome.mux = new(sync.RWMutex)
 		return dbome, nil
 
-	} else if u.Scheme == "mysql" {
-		db, err := sql.Open("mysql", strings.TrimPrefix(dsn, "mysql://"))
+	} else if u.Scheme == MySQL {
+		db, err := sql.Open(MySQL, strings.TrimPrefix(dsn, "mysql://"))
 		if err != nil {
 			return nil, err
 		}
 
-		dbome := new(Bome)
+		dbome := new(DB)
 		dbome.sqlDb = db
-		dbome.dialect = "mysql"
+		dbome.dialect = MySQL
 		dbome.SetVariable(VarLocate, "locate")
 		dbome.SetVariable(VarAutoIncrement, "AUTO_INCREMENT")
 		dbome.SetVariable(VarEngine, "engine=InnoDB")
@@ -97,50 +97,50 @@ func Open(dsn string) (*Bome, error) {
 }
 
 // New creates a MySQL wrapper
-func New(db *sql.DB) (*Bome, error) {
-	dbome := new(Bome)
-	dbome.sqlDb = db
-	dbome.dialect = "mysql"
-	dbome.SetVariable(VarLocate, "locate")
-	dbome.SetVariable(VarAutoIncrement, "AUTO_INCREMENT")
-	dbome.SetVariable(VarEngine, "engine=InnoDB")
-	return dbome, nil
+func New(dbConn *sql.DB) (*DB, error) {
+	db := new(DB)
+	db.sqlDb = dbConn
+	db.dialect = MySQL
+	db.SetVariable(VarLocate, "locate")
+	db.SetVariable(VarAutoIncrement, "AUTO_INCREMENT")
+	db.SetVariable(VarEngine, "engine=InnoDB")
+	return db, nil
 }
 
 // NewLite creates an SQLite wrapper
-func NewLite(db *sql.DB) (*Bome, error) {
-	dbome := new(Bome)
-	dbome.sqlDb = db
-	dbome.isSQLite = true
-	dbome.dialect = "sqlite3"
-	dbome.SetVariable(VarLocate, "instr")
-	dbome.SetVariable(VarAutoIncrement, "AUTOINCREMENT")
-	dbome.SetVariable(VarEngine, "")
-	if _, err := dbome.sqlDb.Exec("PRAGMA foreign_keys=ON"); err != nil {
+func NewLite(dbConn *sql.DB) (*DB, error) {
+	db := new(DB)
+	db.sqlDb = dbConn
+	db.isSQLite = true
+	db.dialect = SQLite3
+	db.SetVariable(VarLocate, "instr")
+	db.SetVariable(VarAutoIncrement, "AUTOINCREMENT")
+	db.SetVariable(VarEngine, "")
+	if _, err := db.sqlDb.Exec("PRAGMA foreign_keys=ON"); err != nil {
 		return nil, err
 	}
-	dbome.mux = new(sync.RWMutex)
-	return dbome, nil
+	db.mux = new(sync.RWMutex)
+	return db, nil
 }
 
 // Init must be call after custom variable and statements are set. And before any request is executed
-func (bome *Bome) Init() error {
-	return bome.init()
+func (db *DB) Init() error {
+	return db.init()
 }
 
-func (bome *Bome) init() error {
+func (db *DB) init() error {
 	for name, scanner := range defaultScanners {
-		bome.RegisterScanner(name, scanner)
+		db.RegisterScanner(name, scanner)
 	}
-	bome.RegisterScanner(mysqlIndexScanner, NewScannerFunc(bome.mysqlIndexScan))
-	bome.RegisterScanner(sqliteIndexScanner, NewScannerFunc(bome.sqliteIndexScan))
+	db.RegisterScanner(mysqlIndexScanner, NewScannerFunc(db.mysqlIndexScan))
+	db.RegisterScanner(sqliteIndexScanner, NewScannerFunc(db.sqliteIndexScan))
 
-	if bome.tableDefs != nil && len(bome.tableDefs) > 0 {
-		for _, schema := range bome.tableDefs {
-			for name, value := range bome.vars {
+	if db.tableDefs != nil && len(db.tableDefs) > 0 {
+		for _, schema := range db.tableDefs {
+			for name, value := range db.vars {
 				schema = strings.Replace(schema, name, value, -1)
 			}
-			_, err := bome.sqlDb.Exec(schema)
+			_, err := db.sqlDb.Exec(schema)
 			if err != nil {
 				return err
 			}
@@ -148,57 +148,57 @@ func (bome *Bome) init() error {
 	}
 
 	var specificStatements map[string]string
-	if bome.isSQLite && bome.registeredSQLiteStatements != nil {
-		specificStatements = bome.registeredSQLiteStatements
+	if db.isSQLite && db.registeredSQLiteStatements != nil {
+		specificStatements = db.registeredSQLiteStatements
 	} else {
-		specificStatements = bome.registeredMySQLStatements
+		specificStatements = db.registeredMySQLStatements
 	}
 
 	if specificStatements != nil {
-		if bome.registeredStatements == nil {
-			bome.registeredStatements = map[string]string{}
+		if db.registeredStatements == nil {
+			db.registeredStatements = map[string]string{}
 		}
 		for name, stmt := range specificStatements {
-			bome.registeredStatements[name] = stmt
+			db.registeredStatements[name] = stmt
 		}
 	}
 
-	for name, stmt := range bome.registeredStatements {
-		for name, value := range bome.vars {
+	for name, stmt := range db.registeredStatements {
+		for name, value := range db.vars {
 			stmt = strings.Replace(stmt, name, value, -1)
 		}
-		bome.registeredStatements[name] = stmt
+		db.registeredStatements[name] = stmt
 	}
 
-	if bome.registeredStatements != nil && len(bome.registeredStatements) > 0 {
-		bome.compiledStatements = map[string]*sql.Stmt{}
-		for name, stmt := range bome.registeredStatements {
-			/*for name, value := range bome.vars {
+	if db.registeredStatements != nil && len(db.registeredStatements) > 0 {
+		db.compiledStatements = map[string]*sql.Stmt{}
+		for name, stmt := range db.registeredStatements {
+			/*for name, value := range db.vars {
 				stmt = strings.Replace(stmt, name, value, -1)
 			} */
-			compiledStmt, err := bome.sqlDb.Prepare(stmt)
+			compiledStmt, err := db.sqlDb.Prepare(stmt)
 			if err != nil {
 				return err
 			}
-			bome.compiledStatements[name] = compiledStmt
+			db.compiledStatements[name] = compiledStmt
 		}
 	}
 
-	bome.initDone = true
+	db.initDone = true
 	return nil
 }
 
 // Migrate executes registered migration scripts. And must be call before init
-func (bome *Bome) Migrate() error {
-	if !bome.initDone {
+func (db *DB) Migrate() error {
+	if !db.initDone {
 		return InitError
 	}
-	for _, ms := range bome.migrationScripts {
-		for name, value := range bome.vars {
+	for _, ms := range db.migrationScripts {
+		for name, value := range db.vars {
 			ms = strings.Replace(ms, name, value, -1)
 		}
 
-		_, err := bome.sqlDb.Exec(ms)
+		_, err := db.sqlDb.Exec(ms)
 		if err != nil {
 			return err
 		}
@@ -207,86 +207,85 @@ func (bome *Bome) Migrate() error {
 }
 
 // IsSQLite return true if wrapped database is SQLite
-func (bome *Bome) IsSQLite() bool {
-	return bome.isSQLite
+func (db *DB) IsSQLite() bool {
+	return db.isSQLite
 }
 
 // SetVariable is used to defines a variable
-func (bome *Bome) SetVariable(name string, value string) *Bome {
-	if bome.vars == nil {
-		bome.vars = map[string]string{}
+func (db *DB) SetVariable(name string, value string) *DB {
+	if db.vars == nil {
+		db.vars = map[string]string{}
 	}
-	bome.vars[name] = value
-	return bome
+	db.vars[name] = value
+	return db
 }
 
 // SetTablePrefix is used to defines all table name prefix
-func (bome *Bome) SetTablePrefix(prefix string) *Bome {
-	if bome.vars == nil {
-		bome.vars = map[string]string{}
+func (db *DB) SetTablePrefix(prefix string) *DB {
+	if db.vars == nil {
+		db.vars = map[string]string{}
 	}
-	bome.vars[VarPrefix] = prefix
-	return bome
+	db.vars[VarPrefix] = prefix
+	return db
 }
 
 // SetTableName registers variable $table$ value
-func (bome *Bome) SetTableName(tableName string) *Bome {
-	if bome.vars == nil {
-		bome.vars = map[string]string{}
+func (db *DB) SetTableName(tableName string) *DB {
+	if db.vars == nil {
+		db.vars = map[string]string{}
 	}
-	bome.vars[VarTable] = tableName
-	return bome
+	db.vars[VarTable] = tableName
+	return db
 }
 
 //AddMigrationScript adds an migration script.
-func (bome *Bome) AddMigrationScript(s string) *Bome {
-	bome.migrationScripts = append(bome.migrationScripts, s)
-	return bome
+func (db *DB) AddMigrationScript(s string) *DB {
+	db.migrationScripts = append(db.migrationScripts, s)
+	return db
 }
 
 // AddTableDefinition adds a table definition. Query can contains predefined or custom defined variables
-func (bome *Bome) AddTableDefinition(schema string) *Bome {
-	bome.tableDefs = append(bome.tableDefs, schema)
-	return bome
+func (db *DB) AddTableDefinition(schema string) *DB {
+	db.tableDefs = append(db.tableDefs, schema)
+	return db
 }
 
 // BeginTx begins a transaction
-func (bome *Bome) BeginTx() (*TX, error) {
-	tx, err := bome.sqlDb.Begin()
+func (db *DB) BeginTx() (*TX, error) {
+	tx, err := db.sqlDb.Begin()
 	if err != nil {
 		return nil, err
 	}
 
 	tr := &TX{}
 	tr.Tx = tx
-	tr.bome = bome
+	tr.db = db
 	return tr, nil
 }
 
 // AddUniqueIndex adds a table index
-func (bome *Bome) AddUniqueIndex(index Index, forceUpdate bool) error {
-	if !bome.initDone {
+func (db *DB) AddUniqueIndex(index Index, forceUpdate bool) error {
+	if !db.initDone {
 		return InitError
 	}
 
-	for varName, value := range bome.vars {
+	for varName, value := range db.vars {
 		index.Table = strings.Replace(index.Table, varName, value, -1)
 	}
-	hasIndex, err := bome.TableHasIndex(index)
+	hasIndex, err := db.TableHasIndex(index)
 	if err != nil {
 		return err
 	}
 
-	var result *Result
 	if hasIndex && forceUpdate {
 		var dropIndexSQL string
-		if bome.dialect == "mysql" {
+		if db.dialect == MySQL {
 			dropIndexSQL = fmt.Sprintf("drop index %s on %s", index.Name, index.Table)
 		} else {
 			dropIndexSQL = fmt.Sprintf("drop index if exists %s on %s", index.Name, index.Table)
 		}
 
-		result = bome.RawExec(dropIndexSQL)
+		result := db.Exec(dropIndexSQL)
 		if result.Error != nil {
 			return result.Error
 		}
@@ -294,13 +293,13 @@ func (bome *Bome) AddUniqueIndex(index Index, forceUpdate bool) error {
 
 	if !hasIndex || forceUpdate {
 		var createIndexSQL string
-		if bome.dialect == "mysql" {
+		if db.dialect == MySQL {
 			createIndexSQL = fmt.Sprintf("create unique index %s on %s(%s)", index.Name, index.Table, strings.Join(index.Fields, ","))
 		} else {
 			createIndexSQL = fmt.Sprintf("create unique index if not exists %s on %s(%s)", index.Name, index.Table, strings.Join(index.Fields, ","))
 		}
 
-		result = bome.RawExec(createIndexSQL)
+		result := db.Exec(createIndexSQL)
 		if result.Error != nil {
 			return result.Error
 		}
@@ -310,60 +309,62 @@ func (bome *Bome) AddUniqueIndex(index Index, forceUpdate bool) error {
 }
 
 // AddForeignKey
-func (bome *Bome) AddForeignKey(fk *ForeignKey) error {
-	o, err := bome.RawQueryFirst("SELECT 1 FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS WHERE CONSTRAINT_NAME=?", BoolScanner, fk.Name)
-	if err != nil {
-		if !IsNotFound(err) {
-			return err
+func (db *DB) AddForeignKey(fk *ForeignKey) error {
+	if db.dialect == MySQL {
+		o, err := db.QueryFirst("SELECT 1 FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS WHERE CONSTRAINT_NAME=?", BoolScanner, fk.Name)
+		if err != nil {
+			if !IsNotFound(err) {
+				return err
+			}
 		}
-	}
 
-	if o == nil || !o.(bool) {
-		r := bome.RawExec(fk.AlterTableAddQuery())
-		return r.Error
+		if o == nil || !o.(bool) {
+			r := db.Exec(fk.AlterTableAddQuery())
+			return r.Error
+		}
 	}
 	return nil
 }
 
 // AddStatement registers a statement that can later be called with the given name
-func (bome *Bome) AddStatement(name string, statementStr string) *Bome {
-	if bome.registeredStatements == nil {
-		bome.registeredStatements = map[string]string{}
+func (db *DB) AddStatement(name string, statementStr string) *DB {
+	if db.registeredStatements == nil {
+		db.registeredStatements = map[string]string{}
 	}
-	bome.registeredStatements[name] = statementStr
-	return bome
+	db.registeredStatements[name] = statementStr
+	return db
 }
 
 // AddSQLiteStatement registers an specific SQLite statement that can later be called with the given name
-func (bome *Bome) AddSQLiteStatement(name string, statementStr string) *Bome {
-	if bome.registeredSQLiteStatements == nil {
-		bome.registeredSQLiteStatements = map[string]string{}
+func (db *DB) AddSQLiteStatement(name string, statementStr string) *DB {
+	if db.registeredSQLiteStatements == nil {
+		db.registeredSQLiteStatements = map[string]string{}
 	}
-	bome.registeredSQLiteStatements[name] = statementStr
-	return bome
+	db.registeredSQLiteStatements[name] = statementStr
+	return db
 }
 
 // AddMySQLStatement registers a specific MySQL statement that can later be called with the given name
-func (bome *Bome) AddMySQLStatement(name string, statementStr string) *Bome {
-	if bome.registeredMySQLStatements == nil {
-		bome.registeredMySQLStatements = map[string]string{}
+func (db *DB) AddMySQLStatement(name string, statementStr string) *DB {
+	if db.registeredMySQLStatements == nil {
+		db.registeredMySQLStatements = map[string]string{}
 	}
-	bome.registeredMySQLStatements[name] = statementStr
-	return bome
+	db.registeredMySQLStatements[name] = statementStr
+	return db
 }
 
 // RegisterScanner registers a scanner with a name wich is used when querying data
-func (bome *Bome) RegisterScanner(name string, scanner Scanner) *Bome {
-	if bome.scanners == nil {
-		bome.scanners = map[string]Scanner{}
+func (db *DB) RegisterScanner(name string, scanner Scanner) *DB {
+	if db.scanners == nil {
+		db.scanners = map[string]Scanner{}
 	}
-	bome.scanners[name] = scanner
-	return bome
+	db.scanners[name] = scanner
+	return db
 }
 
 // TableHasIndex tells if the given index exists
-func (bome *Bome) TableHasIndex(index Index) (bool, error) {
-	if !bome.initDone {
+func (db *DB) TableHasIndex(index Index) (bool, error) {
+	if !db.initDone {
 		return false, InitError
 	}
 
@@ -371,7 +372,7 @@ func (bome *Bome) TableHasIndex(index Index) (bool, error) {
 		scannerName string
 		rawQuery    string
 	)
-	if bome.dialect == "mysql" {
+	if db.dialect == MySQL {
 		rawQuery = fmt.Sprintf("SHOW INDEX FROM %s", index.Table)
 		scannerName = mysqlIndexScanner
 	} else {
@@ -379,7 +380,7 @@ func (bome *Bome) TableHasIndex(index Index) (bool, error) {
 		scannerName = sqliteIndexScanner
 	}
 
-	cursor, err := bome.RawQuery(rawQuery, scannerName)
+	cursor, err := db.Query(rawQuery, scannerName)
 	if err != nil {
 		return false, err
 	}
@@ -401,35 +402,35 @@ func (bome *Bome) TableHasIndex(index Index) (bool, error) {
 	return false, nil
 }
 
-// RawQuery executes a raw query.
+// Query executes a raw query.
 // scannerName: is one the registered scanner name
-func (bome *Bome) RawQuery(query string, scannerName string, params ...interface{}) (Cursor, error) {
-	for name, value := range bome.vars {
+func (db *DB) Query(query string, scannerName string, params ...interface{}) (Cursor, error) {
+	for name, value := range db.vars {
 		query = strings.Replace(query, name, value, -1)
 	}
-	rows, err := bome.sqlDb.Query(query, params...)
+	rows, err := db.sqlDb.Query(query, params...)
 	if err != nil {
 		return nil, err
 	}
-	scanner, err := bome.findScanner(scannerName)
+	scanner, err := db.findScanner(scannerName)
 	if err != nil {
 		return nil, err
 	}
 	return newCursor(rows, scanner), nil
 }
 
-// RawQueryFirst gets the first result of the query result.
+// QueryFirst gets the first result of the query result.
 // scannerName: is one the registered scanner name
-func (bome *Bome) RawQueryFirst(query string, scannerName string, params ...interface{}) (interface{}, error) {
-	for name, value := range bome.vars {
+func (db *DB) QueryFirst(query string, scannerName string, params ...interface{}) (interface{}, error) {
+	for name, value := range db.vars {
 		query = strings.Replace(query, name, value, -1)
 	}
 
-	rows, err := bome.sqlDb.Query(query, params...)
+	rows, err := db.sqlDb.Query(query, params...)
 	if err != nil {
 		return nil, err
 	}
-	scanner, err := bome.findScanner(scannerName)
+	scanner, err := db.findScanner(scannerName)
 	if err != nil {
 		return nil, err
 	}
@@ -445,163 +446,29 @@ func (bome *Bome) RawQueryFirst(query string, scannerName string, params ...inte
 	return cursor.Next()
 }
 
-// RawExec executes the given raw query
-func (bome *Bome) RawExec(rawQuery string, params ...interface{}) *Result {
-	bome.wLock()
-	defer bome.wUnlock()
+// Exec executes the given raw query
+func (db *DB) Exec(rawQuery string, params ...interface{}) Result {
+	db.wLock()
+	defer db.wUnlock()
 	var r sql.Result
-	result := &Result{}
-	for name, value := range bome.vars {
+	result := Result{}
+	for name, value := range db.vars {
 		rawQuery = strings.Replace(rawQuery, name, value, -1)
 	}
-	r, result.Error = bome.sqlDb.Exec(rawQuery, params...)
-	if result.Error == nil && bome.dialect != "sqlite3" {
+	r, result.Error = db.sqlDb.Exec(rawQuery, params...)
+	if result.Error == nil && db.dialect != SQLite3 {
 		result.LastInserted, _ = r.LastInsertId()
 		result.AffectedRows, _ = r.RowsAffected()
 	}
 	return result
 }
 
-// SQLQuery executes a raw query.
-// scannerName: is one the registered scanner name
-func (bome *Bome) SQLQuery(query string, scannerName string, params ...interface{}) (Cursor, error) {
-	for name, value := range bome.vars {
-		query = strings.Replace(query, name, value, -1)
-	}
-	rows, err := bome.sqlDb.Query(query, params...)
-	if err != nil {
-		return nil, err
-	}
-	scanner, err := bome.findScanner(scannerName)
-	if err != nil {
-		return nil, err
-	}
-	return newCursor(rows, scanner), nil
-}
-
-// SQLQueryFirst gets the first result of the query result.
-// scannerName: is one the registered scanner name
-func (bome *Bome) SQLQueryFirst(query string, scannerName string, params ...interface{}) (interface{}, error) {
-	for name, value := range bome.vars {
-		query = strings.Replace(query, name, value, -1)
-	}
-
-	rows, err := bome.sqlDb.Query(query, params...)
-	if err != nil {
-		return nil, err
-	}
-	scanner, err := bome.findScanner(scannerName)
-	if err != nil {
-		return nil, err
-	}
-
-	cursor := newCursor(rows, scanner)
-	defer func() {
-		_ = cursor.Close()
-	}()
-
-	if !cursor.HasNext() {
-		return nil, EntryNotFound
-	}
-	return cursor.Next()
-}
-
-// SQLExec executes the given raw query
-func (bome *Bome) SQLExec(rawQuery string, params ...interface{}) error {
-	bome.wLock()
-	defer bome.wUnlock()
-	for name, value := range bome.vars {
-		rawQuery = strings.Replace(rawQuery, name, value, -1)
-	}
-	_, err := bome.sqlDb.Exec(rawQuery, params...)
-	return err
-}
-
-// Query gets the results of the registered statement which name equals stmt
-func (bome *Bome) Query(stmt string, scannerName string, params ...interface{}) (Cursor, error) {
-	bome.rLock()
-	defer bome.rUnLock()
-
-	st := bome.getStatement(stmt)
-	if st == nil {
-		return nil, fmt.Errorf("statement `%s` does not exist", stmt)
-	}
-
-	rows, err := st.Query(params...)
-	if err != nil {
-		return nil, err
-	}
-
-	scanner, err := bome.findScanner(scannerName)
-	if err != nil {
-		return nil, err
-	}
-
-	cursor := newCursor(rows, scanner)
-	return cursor, nil
-}
-
-// QueryFirst gets the first result of the registered statement which name equals stmt
-func (bome *Bome) QueryFirst(stmt string, scannerName string, params ...interface{}) (interface{}, error) {
-	bome.rLock()
-	defer bome.rUnLock()
-
-	st := bome.getStatement(stmt)
-	if st == nil {
-		return nil, fmt.Errorf("statement `%s` does not exist", stmt)
-	}
-
-	rows, err := st.Query(params...)
-	if err != nil {
-		return nil, err
-	}
-
-	scanner, err := bome.findScanner(scannerName)
-	if err != nil {
-		return nil, err
-	}
-
-	cursor := newCursor(rows, scanner)
-	defer func() {
-		_ = cursor.Close()
-	}()
-
-	if !cursor.HasNext() {
-		return nil, EntryNotFound
-	}
-	return cursor.Next()
-}
-
-// Exec executes the registered statement which name match 'stmt'
-func (bome *Bome) Exec(stmt string, params ...interface{}) *Result {
-	bome.wLock()
-	defer bome.wUnlock()
-
-	result := &Result{}
-	var (
-		st *sql.Stmt
-		r  sql.Result
-	)
-
-	st, result.Error = bome.findCompileStatement(stmt)
-	if result.Error != nil {
-		return result
-	}
-
-	r, result.Error = st.Exec(params...)
-	if result.Error == nil {
-		result.LastInserted, _ = r.LastInsertId()
-		result.AffectedRows, _ = r.RowsAffected()
-	}
-	return result
-}
-
-func (bome *Bome) sqliteIndexScan(row Row) (interface{}, error) {
-	bome.rLock()
-	defer bome.rUnLock()
+func (db *DB) sqliteIndexScan(row Row) (interface{}, error) {
+	db.rLock()
+	defer db.rUnLock()
 
 	var index Index
-	m, err := bome.rowToMap(row.(*sql.Rows))
+	m, err := db.rowToMap(row.(*sql.Rows))
 	if err != nil {
 		return nil, err
 	}
@@ -614,9 +481,9 @@ func (bome *Bome) sqliteIndexScan(row Row) (interface{}, error) {
 	return index, nil
 }
 
-func (bome *Bome) mysqlIndexScan(row Row) (interface{}, error) {
+func (db *DB) mysqlIndexScan(row Row) (interface{}, error) {
 	var index Index
-	m, err := bome.rowToMap(row.(*sql.Rows))
+	m, err := db.rowToMap(row.(*sql.Rows))
 	if err != nil {
 		return nil, err
 	}
@@ -632,7 +499,7 @@ func (bome *Bome) mysqlIndexScan(row Row) (interface{}, error) {
 	return index, nil
 }
 
-func (bome *Bome) rowToMap(rows *sql.Rows) (map[string]interface{}, error) {
+func (db *DB) rowToMap(rows *sql.Rows) (map[string]interface{}, error) {
 	cols, _ := rows.Columns()
 	columns := make([]interface{}, len(cols))
 	columnPointers := make([]interface{}, len(cols))
@@ -656,57 +523,57 @@ func (bome *Bome) rowToMap(rows *sql.Rows) (map[string]interface{}, error) {
 
 }
 
-func (bome *Bome) findCompileStatement(name string) (*sql.Stmt, error) {
-	if bome.compiledStatements == nil {
+func (db *DB) findCompileStatement(name string) (*sql.Stmt, error) {
+	if db.compiledStatements == nil {
 		return nil, StatementNotFound
 	}
 
-	if compiledStmt, found := bome.compiledStatements[name]; found {
+	if compiledStmt, found := db.compiledStatements[name]; found {
 		return compiledStmt, nil
 	}
 	return nil, StatementNotFound
 }
 
-func (bome *Bome) findScanner(name string) (Scanner, error) {
-	scanner, found := bome.scanners[name]
+func (db *DB) findScanner(name string) (Scanner, error) {
+	scanner, found := db.scanners[name]
 	if !found {
 		return nil, ScannerNotFound
 	}
 	return scanner, nil
 }
 
-func (bome *Bome) getStatement(name string) *sql.Stmt {
-	if bome.compiledStatements == nil {
+func (db *DB) getStatement(name string) *sql.Stmt {
+	if db.compiledStatements == nil {
 		return nil
 	}
-	s, found := bome.compiledStatements[name]
+	s, found := db.compiledStatements[name]
 	if !found {
 		return nil
 	}
 	return s
 }
 
-func (bome *Bome) rLock() {
-	if bome.mux != nil {
-		bome.mux.RLock()
+func (db *DB) rLock() {
+	if db.mux != nil {
+		db.mux.RLock()
 	}
 }
 
-func (bome *Bome) wLock() {
-	if bome.mux != nil {
-		bome.mux.Lock()
+func (db *DB) wLock() {
+	if db.mux != nil {
+		db.mux.Lock()
 	}
 }
 
-func (bome *Bome) rUnLock() {
-	if bome.mux != nil {
-		bome.mux.RUnlock()
+func (db *DB) rUnLock() {
+	if db.mux != nil {
+		db.mux.RUnlock()
 	}
 }
 
-func (bome *Bome) wUnlock() {
-	if bome.mux != nil {
-		bome.mux.Unlock()
+func (db *DB) wUnlock() {
+	if db.mux != nil {
+		db.mux.Unlock()
 	}
 }
 

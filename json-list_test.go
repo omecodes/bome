@@ -27,11 +27,12 @@ func initJsonList(t *testing.T) {
 		_, err = db.Exec("drop table if exists j_list")
 		So(err, ShouldBeNil)
 
-		dbJsonList, err = NewJSONList(db, "unsupported", "j_list")
+		builder := &Builder{}
+		dbJsonList, err = builder.SetConn(db).SetDialect("unsupported").SetTableName("j_list").JSONList()
 		So(err, ShouldNotBeNil)
 		So(dbJsonList, ShouldBeNil)
 
-		dbJsonList, err = NewJSONList(db, testDialect, "j_list")
+		dbJsonList, err = builder.SetConn(db).SetDialect(testDialect).SetTableName("j_list").JSONList()
 		So(err, ShouldBeNil)
 		So(dbJsonList, ShouldNotBeNil)
 	}
@@ -44,41 +45,35 @@ func TestNewJSONList(t *testing.T) {
 }
 
 func TestJsonListDB_Save(t *testing.T) {
-	if jsonTestEnabled {
-		Convey("Save double map entries", t, func() {
-			initJsonList(t)
+	Convey("Save double map entries", t, func() {
+		initJsonList(t)
 
-			var err error
-			err = dbJsonList.Save(&ListEntry{Value: doc1})
-			So(err, ShouldBeNil)
+		var err error
+		err = dbJsonList.Save(&ListEntry{Value: doc1})
+		So(err, ShouldBeNil)
 
-			err = dbJsonList.Save(&ListEntry{Value: doc2})
-			So(err, ShouldBeNil)
+		err = dbJsonList.Save(&ListEntry{Value: doc2})
+		So(err, ShouldBeNil)
 
-			err = dbJsonList.Save(&ListEntry{Value: doc3})
-			So(err, ShouldBeNil)
-		})
-	}
+		err = dbJsonList.Save(&ListEntry{Value: doc3})
+		So(err, ShouldBeNil)
+	})
 }
 
 func TestJsonListDB_EditAt(t *testing.T) {
-	if jsonTestEnabled {
-		Convey("Edit at", t, func() {
-			initJsonList(t)
-			err := dbJsonList.EditAt(3, "$.address.commune", "'Yahou'")
-			So(err, ShouldBeNil)
-		})
-	}
+	Convey("Edit at", t, func() {
+		initJsonList(t)
+		err := dbJsonList.EditAt(3, "$.address.commune", "'Yahou'")
+		So(err, ShouldBeNil)
+	})
 }
 
 func TestJsonListDB_ExtractAt(t *testing.T) {
-	if jsonTestEnabled {
-		Convey("Extract at", t, func() {
-			value, err := dbJsonList.ExtractAt(3, "$.address.commune")
-			So(err, ShouldBeNil)
-			So(value, ShouldEqual, "Yahou")
-		})
-	}
+	Convey("Extract at", t, func() {
+		value, err := dbJsonList.ExtractAt(3, "$.address.commune")
+		So(err, ShouldBeNil)
+		So(value, ShouldEqual, "Yahou")
+	})
 }
 
 func TestJsonListDB_Clear(t *testing.T) {

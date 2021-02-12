@@ -40,11 +40,12 @@ func initJsonDbMap(t *testing.T) {
 		_, err = db.Exec("drop table if exists j_map")
 		So(err, ShouldBeNil)
 
-		dbJsonMap, err = NewJSONMap(db, "unsupported", "j_map")
+		builder := &Builder{}
+		dbJsonMap, err = builder.SetConn(db).SetDialect("unsupported").SetTableName("j_map").JSONMap()
 		So(err, ShouldNotBeNil)
 		So(dbJsonMap, ShouldBeNil)
 
-		dbJsonMap, err = NewJSONMap(db, testDialect, "j_map")
+		dbJsonMap, err = builder.SetConn(db).SetDialect(testDialect).SetTableName("j_map").JSONMap()
 		So(err, ShouldBeNil)
 		So(dbJsonMap, ShouldNotBeNil)
 	}
@@ -73,33 +74,27 @@ func TestJsonMap_Save(t *testing.T) {
 }
 
 func TestJsonMap_EditAt(t *testing.T) {
-	if jsonTestEnabled {
-		Convey("Edit item", t, func() {
-			err := dbJsonMap.EditAt("akam", "$.address.commune", StringExpr("yahou"))
-			So(err, ShouldBeNil)
+	Convey("Edit item", t, func() {
+		err := dbJsonMap.EditAt("akam", "$.address.commune", StringExpr("yahou"))
+		So(err, ShouldBeNil)
 
-			value, err := dbJsonMap.ExtractAt("akam", "$.address.commune")
-			So(err, ShouldBeNil)
-			So(value, ShouldEqual, "yahou")
-		})
-	}
+		value, err := dbJsonMap.ExtractAt("akam", "$.address.commune")
+		So(err, ShouldBeNil)
+		So(value, ShouldEqual, "yahou")
+	})
 }
 
 func TestJsonMap_ExtractAt(t *testing.T) {
-	if jsonTestEnabled {
-		Convey("Edit item", t, func() {
-			value, err := dbJsonMap.ExtractAt("wassiath", "$.address.commune")
-			So(err, ShouldBeNil)
-			So(value, ShouldEqual, "Yopougon")
-		})
-	}
+	Convey("Edit item", t, func() {
+		value, err := dbJsonMap.ExtractAt("wassiath", "$.address.commune")
+		So(err, ShouldBeNil)
+		So(value, ShouldEqual, "Yopougon")
+	})
 }
 
 func TestJsonMap_Clear(t *testing.T) {
-	if jsonTestEnabled {
-		Convey("Edit item", t, func() {
-			err := dbJsonMap.Clear()
-			So(err, ShouldBeNil)
-		})
-	}
+	Convey("Edit item", t, func() {
+		err := dbJsonMap.Clear()
+		So(err, ShouldBeNil)
+	})
 }
