@@ -48,25 +48,9 @@ func (s *DoubleMap) Transaction(ctx context.Context) (context.Context, *DoubleMa
 		if s.tx.db.sqlDb != tx.db.sqlDb {
 			newCtx := ContextWithCommitActions(ctx, tx.Commit)
 			newCtx = ContextWithRollbackActions(newCtx, tx.Rollback)
-
-			var err error
-			tx, err = s.DB.BeginTx()
-			if err != nil {
-				return ctx, nil, err
-			}
-
-			return contextWithTransaction(newCtx, tx), &DoubleMap{
-				tableName: s.tableName,
-				tx:        tx,
-				dialect:   s.dialect,
-			}, nil
+			return contextWithTransaction(newCtx, s.tx), s, nil
 		}
-
-		return ctx, &DoubleMap{
-			tableName: s.tableName,
-			tx:        tx,
-			dialect:   s.dialect,
-		}, nil
+		return ctx, s, nil
 	}
 
 	tx, err := s.DB.BeginTx()

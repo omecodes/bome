@@ -69,6 +69,11 @@ func ContextWithRollbackActions(parent context.Context, actions ...ActionFunc) c
 	return parent
 }
 
+func Transaction(parent context.Context) context.Context {
+	ta := new(transactionActions)
+	return context.WithValue(parent, ctxTransactionActions{}, ta)
+}
+
 func Commit(ctx context.Context) error {
 	tx := transaction(ctx)
 	if tx != nil {

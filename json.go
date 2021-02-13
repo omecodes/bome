@@ -13,17 +13,14 @@ type JsonValueHolder struct {
 }
 
 func (s *JsonValueHolder) Transaction(ctx context.Context) (context.Context, *JsonValueHolder, error) {
-	if s.tx != nil {
-		tx := transaction(ctx)
-		if tx == nil {
-			return contextWithTransaction(ctx, s.tx), s, nil
-		}
-		return ctx, s, nil
-	}
-
 	tx := transaction(ctx)
 	if tx == nil {
-		tx, err := s.DB.BeginTx()
+		if s.tx != nil {
+			return contextWithTransaction(ctx, s.tx), s, nil
+		}
+
+		var err error
+		tx, err = s.DB.BeginTx()
 		if err != nil {
 			return ctx, nil, err
 		}
@@ -35,7 +32,22 @@ func (s *JsonValueHolder) Transaction(ctx context.Context) (context.Context, *Js
 		}, nil
 	}
 
-	return ctx, &JsonValueHolder{
+	if s.tx != nil {
+		if s.tx.db.sqlDb != tx.db.sqlDb {
+			newCtx := ContextWithCommitActions(ctx, tx.Commit)
+			newCtx = ContextWithRollbackActions(newCtx, tx.Rollback)
+			return contextWithTransaction(newCtx, s.tx), s, nil
+		}
+		return ctx, s, nil
+	}
+
+	tx, err := s.DB.BeginTx()
+	if err != nil {
+		return ctx, nil, err
+	}
+
+	newCtx := contextWithTransaction(ctx, tx)
+	return newCtx, &JsonValueHolder{
 		tx:      tx,
 		dialect: s.dialect,
 	}, nil

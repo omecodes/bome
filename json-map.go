@@ -40,7 +40,6 @@ func (m *JSONMap) Transaction(ctx context.Context) (context.Context, *JSONMap, e
 		newCtx := contextWithTransaction(ctx, tx)
 		return newCtx, &JSONMap{
 			JsonValueHolder: &JsonValueHolder{
-				field:   "value",
 				dialect: m.dialect,
 				tx:      tx,
 			},
@@ -59,45 +58,9 @@ func (m *JSONMap) Transaction(ctx context.Context) (context.Context, *JSONMap, e
 		if m.tx.db.sqlDb != tx.db.sqlDb {
 			newCtx := ContextWithCommitActions(ctx, tx.Commit)
 			newCtx = ContextWithRollbackActions(newCtx, tx.Rollback)
-
-			var err error
-			tx, err = m.DB.BeginTx()
-			if err != nil {
-				return ctx, nil, err
-			}
-
-			return contextWithTransaction(newCtx, tx), &JSONMap{
-				JsonValueHolder: &JsonValueHolder{
-					field:   "value",
-					dialect: m.dialect,
-					tx:      tx,
-				},
-				Map: &Map{
-					tableName: m.tableName,
-					dialect:   m.dialect,
-					tx:        tx,
-				},
-				tableName: m.tableName,
-				tx:        tx,
-				dialect:   m.dialect,
-			}, nil
+			return contextWithTransaction(newCtx, m.tx), m, nil
 		}
-
-		return ctx, &JSONMap{
-			JsonValueHolder: &JsonValueHolder{
-				field:   "value",
-				dialect: m.dialect,
-				tx:      tx,
-			},
-			Map: &Map{
-				tableName: m.tableName,
-				dialect:   m.dialect,
-				tx:        tx,
-			},
-			tableName: m.tableName,
-			tx:        tx,
-			dialect:   m.dialect,
-		}, nil
+		return ctx, m, nil
 	}
 
 	tx, err := m.DB.BeginTx()
@@ -108,7 +71,6 @@ func (m *JSONMap) Transaction(ctx context.Context) (context.Context, *JSONMap, e
 	newCtx := contextWithTransaction(ctx, tx)
 	return newCtx, &JSONMap{
 		JsonValueHolder: &JsonValueHolder{
-			field:   "value",
 			dialect: m.dialect,
 			tx:      tx,
 		},

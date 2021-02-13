@@ -47,25 +47,9 @@ func (m *Map) Transaction(ctx context.Context) (context.Context, *Map, error) {
 		if m.tx.db.sqlDb != tx.db.sqlDb {
 			newCtx := ContextWithCommitActions(ctx, tx.Commit)
 			newCtx = ContextWithRollbackActions(newCtx, tx.Rollback)
-
-			var err error
-			tx, err = m.DB.BeginTx()
-			if err != nil {
-				return ctx, nil, err
-			}
-
-			return contextWithTransaction(newCtx, tx), &Map{
-				tableName: m.tableName,
-				tx:        tx,
-				dialect:   m.dialect,
-			}, nil
+			return contextWithTransaction(newCtx, m.tx), m, nil
 		}
-
-		return ctx, &Map{
-			tableName: m.tableName,
-			tx:        tx,
-			dialect:   m.dialect,
-		}, nil
+		return ctx, m, nil
 	}
 
 	tx, err := m.DB.BeginTx()

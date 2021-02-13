@@ -47,25 +47,9 @@ func (l *List) Transaction(ctx context.Context) (context.Context, *List, error) 
 		if l.tx.db.sqlDb != tx.db.sqlDb {
 			newCtx := ContextWithCommitActions(ctx, tx.Commit)
 			newCtx = ContextWithRollbackActions(newCtx, tx.Rollback)
-
-			var err error
-			tx, err = l.DB.BeginTx()
-			if err != nil {
-				return ctx, nil, err
-			}
-
-			return contextWithTransaction(newCtx, tx), &List{
-				tableName: l.tableName,
-				tx:        tx,
-				dialect:   l.dialect,
-			}, nil
+			return contextWithTransaction(newCtx, l.tx), l, nil
 		}
-
-		return ctx, &List{
-			tableName: l.tableName,
-			tx:        tx,
-			dialect:   l.dialect,
-		}, nil
+		return ctx, l, nil
 	}
 
 	tx, err := l.DB.BeginTx()

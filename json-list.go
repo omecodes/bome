@@ -24,15 +24,15 @@ func (l *JSONList) Keys() []string {
 	}
 }
 
-func (s *JSONList) Transaction(ctx context.Context) (context.Context, *JSONList, error) {
+func (l *JSONList) Transaction(ctx context.Context) (context.Context, *JSONList, error) {
 	tx := transaction(ctx)
 	if tx == nil {
-		if s.tx != nil {
-			return contextWithTransaction(ctx, s.tx), s, nil
+		if l.tx != nil {
+			return contextWithTransaction(ctx, l.tx), l, nil
 		}
 
 		var err error
-		tx, err = s.DB.BeginTx()
+		tx, err = l.DB.BeginTx()
 		if err != nil {
 			return ctx, nil, err
 		}
@@ -40,67 +40,30 @@ func (s *JSONList) Transaction(ctx context.Context) (context.Context, *JSONList,
 		newCtx := contextWithTransaction(ctx, tx)
 		return newCtx, &JSONList{
 			JsonValueHolder: &JsonValueHolder{
-				field:   "value",
-				dialect: s.dialect,
+				dialect: l.dialect,
 				tx:      tx,
 			},
 			List: &List{
-				tableName: s.tableName,
-				dialect:   s.dialect,
+				tableName: l.tableName,
+				dialect:   l.dialect,
 				tx:        tx,
 			},
-			tableName: s.tableName,
+			tableName: l.tableName,
 			tx:        tx,
-			dialect:   s.dialect,
+			dialect:   l.dialect,
 		}, nil
 	}
 
-	if s.tx != nil {
-		if s.tx.db.sqlDb != tx.db.sqlDb {
+	if l.tx != nil {
+		if l.tx.db.sqlDb != tx.db.sqlDb {
 			newCtx := ContextWithCommitActions(ctx, tx.Commit)
 			newCtx = ContextWithRollbackActions(newCtx, tx.Rollback)
-
-			var err error
-			tx, err = s.DB.BeginTx()
-			if err != nil {
-				return ctx, nil, err
-			}
-
-			return contextWithTransaction(newCtx, tx), &JSONList{
-				JsonValueHolder: &JsonValueHolder{
-					field:   "value",
-					dialect: s.dialect,
-					tx:      tx,
-				},
-				List: &List{
-					tableName: s.tableName,
-					dialect:   s.dialect,
-					tx:        tx,
-				},
-				tableName: s.tableName,
-				tx:        tx,
-				dialect:   s.dialect,
-			}, nil
+			return contextWithTransaction(newCtx, l.tx), l, nil
 		}
-
-		return ctx, &JSONList{
-			JsonValueHolder: &JsonValueHolder{
-				field:   "value",
-				dialect: s.dialect,
-				tx:      tx,
-			},
-			List: &List{
-				tableName: s.tableName,
-				dialect:   s.dialect,
-				tx:        tx,
-			},
-			tableName: s.tableName,
-			tx:        tx,
-			dialect:   s.dialect,
-		}, nil
+		return ctx, l, nil
 	}
 
-	tx, err := s.DB.BeginTx()
+	tx, err := l.DB.BeginTx()
 	if err != nil {
 		return ctx, nil, err
 	}
@@ -108,18 +71,17 @@ func (s *JSONList) Transaction(ctx context.Context) (context.Context, *JSONList,
 	newCtx := contextWithTransaction(ctx, tx)
 	return newCtx, &JSONList{
 		JsonValueHolder: &JsonValueHolder{
-			field:   "value",
-			dialect: s.dialect,
+			dialect: l.dialect,
 			tx:      tx,
 		},
 		List: &List{
-			tableName: s.tableName,
-			dialect:   s.dialect,
+			tableName: l.tableName,
+			dialect:   l.dialect,
 			tx:        tx,
 		},
-		tableName: s.tableName,
+		tableName: l.tableName,
 		tx:        tx,
-		dialect:   s.dialect,
+		dialect:   l.dialect,
 	}, nil
 }
 
