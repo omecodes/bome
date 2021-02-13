@@ -54,14 +54,6 @@ func (s *DoubleMap) Transaction(ctx context.Context) (context.Context, *DoubleMa
 	}, nil
 }
 
-func (s *DoubleMap) SwitchToTransactionMode(tx *TX) *DoubleMap {
-	return &DoubleMap{
-		tableName: s.tableName,
-		tx:        tx,
-		dialect:   s.dialect,
-	}
-}
-
 func (s *DoubleMap) Client() Client {
 	if s.tx != nil {
 		return s.tx

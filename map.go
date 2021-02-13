@@ -53,14 +53,6 @@ func (m *Map) Transaction(ctx context.Context) (context.Context, *Map, error) {
 	}, nil
 }
 
-func (m *Map) SwitchToTransactionMode(tx *TX) *Map {
-	return &Map{
-		tableName: m.tableName,
-		tx:        tx,
-		dialect:   m.dialect,
-	}
-}
-
 func (m *Map) Client() Client {
 	if m.tx != nil {
 		return m.tx

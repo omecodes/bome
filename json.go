@@ -41,13 +41,6 @@ func (s *JsonValueHolder) Transaction(ctx context.Context) (context.Context, *Js
 	}, nil
 }
 
-func (s *JsonValueHolder) SwitchToTransactionMode(tx *TX) *JsonValueHolder {
-	return &JsonValueHolder{
-		tx:      tx,
-		dialect: s.dialect,
-	}
-}
-
 func (s *JsonValueHolder) Client() Client {
 	if s.tx != nil {
 		return s.tx

@@ -11,13 +11,6 @@ type TX struct {
 	*sql.Tx
 }
 
-func (tx *TX) clone(db *DB) *TX {
-	return &TX{
-		db: db,
-		Tx: tx.Tx,
-	}
-}
-
 //Exec executes the statement saved as name
 func (tx *TX) Exec(query string, args ...interface{}) Result {
 	for name, value := range tx.db.vars {

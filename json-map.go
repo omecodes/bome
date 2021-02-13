@@ -73,22 +73,6 @@ func (m *JSONMap) Transaction(ctx context.Context) (context.Context, *JSONMap, e
 	}, nil
 }
 
-func (m *JSONMap) SwitchToTransactionMode(tx *TX) *JSONMap {
-	return &JSONMap{
-		JsonValueHolder: &JsonValueHolder{
-			tx:      m.tx,
-			dialect: m.dialect,
-		},
-		Map: &Map{
-			tableName: m.tableName,
-			tx:        tx,
-			dialect:   m.dialect,
-		},
-		tableName: m.tableName,
-		tx:        tx,
-	}
-}
-
 func (m *JSONMap) Client() Client {
 	if m.tx != nil {
 		return m.tx

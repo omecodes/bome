@@ -73,23 +73,6 @@ func (l *JSONList) Transaction(ctx context.Context) (context.Context, *JSONList,
 	}, nil
 }
 
-func (l *JSONList) SwitchToTransactionMode(tx *TX) *JSONList {
-	return &JSONList{
-		JsonValueHolder: &JsonValueHolder{
-			tx:      l.tx,
-			dialect: l.dialect,
-		},
-		List: &List{
-			tx:        tx,
-			tableName: l.tableName,
-			dialect:   l.dialect,
-		},
-		tableName: l.tableName,
-		tx:        tx,
-		dialect:   l.dialect,
-	}
-}
-
 func (l *JSONList) Client() Client {
 	if l.tx != nil {
 		return l.tx

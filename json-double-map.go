@@ -73,23 +73,6 @@ func (s *JSONDoubleMap) Transaction(ctx context.Context) (context.Context, *JSON
 	}, nil
 }
 
-func (s *JSONDoubleMap) SwitchToTransactionMode(tx *TX) *JSONDoubleMap {
-	return &JSONDoubleMap{
-		JsonValueHolder: &JsonValueHolder{
-			tx:      s.tx,
-			dialect: s.dialect,
-		},
-		DoubleMap: &DoubleMap{
-			tableName: s.tableName,
-			tx:        s.tx,
-			dialect:   s.dialect,
-		},
-		tableName: s.tableName,
-		tx:        tx,
-		dialect:   s.dialect,
-	}
-}
-
 func (s *JSONDoubleMap) Client() Client {
 	if s.tx != nil {
 		return s.tx

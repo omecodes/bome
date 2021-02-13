@@ -5,12 +5,9 @@ import (
 )
 
 type ctxTx struct{}
-type ctxWithTransaction struct{}
 
 func contextWithTransaction(parent context.Context, tx *TX) context.Context {
-	newCtx := context.WithValue(parent, ctxTx{}, tx)
-	newCtx = context.WithValue(newCtx, ctxWithTransaction{}, true)
-	return newCtx
+	return context.WithValue(parent, ctxTx{}, tx)
 }
 
 func transaction(ctx context.Context) *TX {
@@ -19,4 +16,12 @@ func transaction(ctx context.Context) *TX {
 		return nil
 	}
 	return o.(*TX)
+}
+
+func Commit(ctx context.Context) error {
+	return nil
+}
+
+func Rollback(ctx context.Context) error {
+	return nil
 }

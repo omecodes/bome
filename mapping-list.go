@@ -1,6 +1,9 @@
 package bome
 
-import "log"
+import (
+	"context"
+	"log"
+)
 
 type MappingList struct {
 	tableName string
@@ -17,6 +20,37 @@ func (l *MappingList) Keys() []string {
 	return []string{
 		"ind",
 	}
+}
+
+func (l *MappingList) Transaction(ctx context.Context) (context.Context, *MappingList, error) {
+	if l.tx != nil {
+		tx := transaction(ctx)
+		if tx == nil {
+			return contextWithTransaction(ctx, l.tx), l, nil
+		}
+		return ctx, l, nil
+	}
+
+	tx := transaction(ctx)
+	if tx == nil {
+		tx, err := l.DB.BeginTx()
+		if err != nil {
+			return ctx, nil, err
+		}
+
+		newCtx := contextWithTransaction(ctx, tx)
+		return newCtx, &MappingList{
+			tableName: l.tableName,
+			tx:        tx,
+			dialect:   l.dialect,
+		}, nil
+	}
+
+	return ctx, &MappingList{
+		tableName: l.tableName,
+		tx:        tx,
+		dialect:   l.dialect,
+	}, nil
 }
 
 func (l *MappingList) Client() Client {

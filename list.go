@@ -53,14 +53,6 @@ func (l *List) Transaction(ctx context.Context) (context.Context, *List, error) 
 	}, nil
 }
 
-func (l *List) SwitchToTransactionMode(tx *TX) *List {
-	return &List{
-		tableName: l.tableName,
-		tx:        tx,
-		dialect:   l.dialect,
-	}
-}
-
 func (l *List) Client() Client {
 	if l.tx != nil {
 		return l.tx
