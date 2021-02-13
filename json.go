@@ -136,7 +136,6 @@ func (s *JsonValueHolder) Search(condition BoolExpr, scannerName string) (Cursor
 	rawQuery := fmt.Sprintf("select * from $table$ where %s;",
 		condition.sql(),
 	)
-	fmt.Println(rawQuery)
 	return s.Client().Query(rawQuery, scannerName)
 }
 

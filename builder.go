@@ -51,7 +51,7 @@ func (b *Builder) AddIndexes(indexes ...*Index) *Builder {
 }
 
 func (b *Builder) Map(opts ...Option) (*Map, error) {
-	if b.dialect != SQLite3 && b.dialect != "" {
+	if b.dialect != SQLite3 && b.dialect != MySQL {
 		return nil, DialectNotSupported
 	}
 
@@ -73,7 +73,7 @@ func (b *Builder) Map(opts ...Option) (*Map, error) {
 }
 
 func (b *Builder) JSONMap(opts ...Option) (*JSONMap, error) {
-	if b.dialect != SQLite3 && b.dialect != "" {
+	if b.dialect != SQLite3 && b.dialect != MySQL {
 		return nil, DialectNotSupported
 	}
 
@@ -105,7 +105,7 @@ func (b *Builder) JSONMap(opts ...Option) (*JSONMap, error) {
 }
 
 func (b *Builder) DoubleMap(opts ...Option) (*DoubleMap, error) {
-	if b.dialect != SQLite3 && b.dialect != "" {
+	if b.dialect != SQLite3 && b.dialect != MySQL {
 		return nil, DialectNotSupported
 	}
 
@@ -129,7 +129,7 @@ func (b *Builder) DoubleMap(opts ...Option) (*DoubleMap, error) {
 }
 
 func (b *Builder) JSONDoubleMap(opts ...Option) (*JSONDoubleMap, error) {
-	if b.dialect != SQLite3 && b.dialect != "" {
+	if b.dialect != SQLite3 && b.dialect != MySQL {
 		return nil, DialectNotSupported
 	}
 
@@ -167,7 +167,7 @@ func (b *Builder) JSONDoubleMap(opts ...Option) (*JSONDoubleMap, error) {
 }
 
 func (b *Builder) List(opts ...Option) (*List, error) {
-	if b.dialect != SQLite3 && b.dialect != "" {
+	if b.dialect != SQLite3 && b.dialect != MySQL {
 		return nil, DialectNotSupported
 	}
 
@@ -197,7 +197,7 @@ func (b *Builder) List(opts ...Option) (*List, error) {
 }
 
 func (b *Builder) JSONList(opts ...Option) (*JSONList, error) {
-	if b.dialect != SQLite3 && b.dialect != "" {
+	if b.dialect != SQLite3 && b.dialect != MySQL {
 		return nil, DialectNotSupported
 	}
 
@@ -237,7 +237,7 @@ func (b *Builder) JSONList(opts ...Option) (*JSONList, error) {
 }
 
 func (b *Builder) KeyValueList(opts ...Option) (*MappingList, error) {
-	if b.dialect != SQLite3 && b.dialect != "" {
+	if b.dialect != SQLite3 && b.dialect != MySQL {
 		return nil, DialectNotSupported
 	}
 
@@ -260,7 +260,7 @@ func (b *Builder) KeyValueList(opts ...Option) (*MappingList, error) {
 }
 
 func (b *Builder) KeyJSONValueList(opts ...Option) (*JSONMappingList, error) {
-	if b.dialect != SQLite3 && b.dialect != "" {
+	if b.dialect != SQLite3 && b.dialect != MySQL {
 		return nil, DialectNotSupported
 	}
 
@@ -293,10 +293,6 @@ func (b *Builder) KeyJSONValueList(opts ...Option) (*JSONMappingList, error) {
 }
 
 func (b *Builder) initTable(fields []string, opts ...Option) (*DB, error) {
-	if b.dialect != SQLite3 && b.dialect != "" {
-		return nil, DialectNotSupported
-	}
-
 	var postInitExec []string
 
 	var (
