@@ -242,3 +242,17 @@ func (l *MappingList) Clear() error {
 func (l *MappingList) Close() error {
 	return l.DB.sqlDb.Close()
 }
+
+func (l *MappingList) Commit() error {
+	if l.tx != nil {
+		return l.tx.Commit()
+	}
+	return nil
+}
+
+func (l *MappingList) Rollback() error {
+	if l.tx != nil {
+		return l.tx.Rollback()
+	}
+	return nil
+}

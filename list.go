@@ -243,3 +243,17 @@ func (l *List) Clear() error {
 func (l *List) Close() error {
 	return l.DB.sqlDb.Close()
 }
+
+func (l *List) Commit() error {
+	if l.tx != nil {
+		return l.tx.Commit()
+	}
+	return nil
+}
+
+func (l *List) Rollback() error {
+	if l.tx != nil {
+		return l.tx.Rollback()
+	}
+	return nil
+}

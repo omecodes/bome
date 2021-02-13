@@ -239,3 +239,17 @@ func (s *DoubleMap) Clear() error {
 func (s *DoubleMap) Close() error {
 	return s.DB.sqlDb.Close()
 }
+
+func (s *DoubleMap) Commit() error {
+	if s.tx != nil {
+		return s.tx.Commit()
+	}
+	return nil
+}
+
+func (s *DoubleMap) Rollback() error {
+	if s.tx != nil {
+		return s.tx.Rollback()
+	}
+	return nil
+}

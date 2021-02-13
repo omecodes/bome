@@ -156,3 +156,17 @@ func (m *Map) Clear() error {
 func (m *Map) Close() error {
 	return m.DB.sqlDb.Close()
 }
+
+func (m *Map) Commit() error {
+	if m.tx != nil {
+		return m.tx.Commit()
+	}
+	return nil
+}
+
+func (m *Map) Rollback() error {
+	if m.tx != nil {
+		return m.tx.Rollback()
+	}
+	return nil
+}
