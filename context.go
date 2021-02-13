@@ -16,9 +16,7 @@ type ctxTransactionActions struct{}
 type ActionFunc func() error
 
 func contextWithTransaction(parent context.Context, tx *TX) context.Context {
-	newCtx := ContextWithRollbackActions(parent, tx.Rollback)
-	newCtx = ContextWithCommitActions(newCtx, tx.Commit)
-	return context.WithValue(newCtx, ctxTx{}, tx)
+	return context.WithValue(parent, ctxTx{}, tx)
 }
 
 func transaction(ctx context.Context) *TX {
@@ -90,7 +88,6 @@ func Commit(ctx context.Context) error {
 			}
 		}
 	}
-
 	return nil
 }
 
