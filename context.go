@@ -19,9 +19,17 @@ func transaction(ctx context.Context) *TX {
 }
 
 func Commit(ctx context.Context) error {
+	tx := transaction(ctx)
+	if tx != nil {
+		return tx.Commit()
+	}
 	return nil
 }
 
 func Rollback(ctx context.Context) error {
+	tx := transaction(ctx)
+	if tx != nil {
+		return tx.Rollback()
+	}
 	return nil
 }
