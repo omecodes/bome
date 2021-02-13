@@ -41,11 +41,6 @@ func (s *JsonValueHolder) Transaction(ctx context.Context) (context.Context, *Js
 		return ctx, s, nil
 	}
 
-	tx, err := s.DB.BeginTx()
-	if err != nil {
-		return ctx, nil, err
-	}
-
 	newCtx := contextWithTransaction(ctx, tx)
 	return newCtx, &JsonValueHolder{
 		tx:      tx,

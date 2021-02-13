@@ -63,11 +63,6 @@ func (l *JSONMappingList) Transaction(ctx context.Context) (context.Context, *JS
 		return ctx, l, nil
 	}
 
-	tx, err := l.DB.BeginTx()
-	if err != nil {
-		return ctx, nil, err
-	}
-
 	newCtx := contextWithTransaction(ctx, tx)
 	return newCtx, &JSONMappingList{
 		JsonValueHolder: &JsonValueHolder{

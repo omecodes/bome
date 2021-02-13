@@ -63,11 +63,6 @@ func (l *JSONList) Transaction(ctx context.Context) (context.Context, *JSONList,
 		return ctx, l, nil
 	}
 
-	tx, err := l.DB.BeginTx()
-	if err != nil {
-		return ctx, nil, err
-	}
-
 	newCtx := contextWithTransaction(ctx, tx)
 	return newCtx, &JSONList{
 		JsonValueHolder: &JsonValueHolder{

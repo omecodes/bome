@@ -52,11 +52,6 @@ func (l *List) Transaction(ctx context.Context) (context.Context, *List, error) 
 		return ctx, l, nil
 	}
 
-	tx, err := l.DB.BeginTx()
-	if err != nil {
-		return ctx, nil, err
-	}
-
 	newCtx := contextWithTransaction(ctx, tx)
 	return newCtx, &List{
 		tableName: l.tableName,

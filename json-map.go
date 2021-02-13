@@ -63,11 +63,6 @@ func (m *JSONMap) Transaction(ctx context.Context) (context.Context, *JSONMap, e
 		return ctx, m, nil
 	}
 
-	tx, err := m.DB.BeginTx()
-	if err != nil {
-		return ctx, nil, err
-	}
-
 	newCtx := contextWithTransaction(ctx, tx)
 	return newCtx, &JSONMap{
 		JsonValueHolder: &JsonValueHolder{

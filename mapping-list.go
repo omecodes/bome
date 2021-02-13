@@ -52,11 +52,6 @@ func (l *MappingList) Transaction(ctx context.Context) (context.Context, *Mappin
 		return ctx, l, nil
 	}
 
-	tx, err := l.DB.BeginTx()
-	if err != nil {
-		return ctx, nil, err
-	}
-
 	newCtx := contextWithTransaction(ctx, tx)
 	return newCtx, &MappingList{
 		tableName: l.tableName,

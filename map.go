@@ -52,11 +52,6 @@ func (m *Map) Transaction(ctx context.Context) (context.Context, *Map, error) {
 		return ctx, m, nil
 	}
 
-	tx, err := m.DB.BeginTx()
-	if err != nil {
-		return ctx, nil, err
-	}
-
 	newCtx := contextWithTransaction(ctx, tx)
 	return newCtx, &Map{
 		tableName: m.tableName,
