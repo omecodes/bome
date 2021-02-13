@@ -40,12 +40,11 @@ func initJsonDbMap(t *testing.T) {
 		_, err = db.Exec("drop table if exists j_map")
 		So(err, ShouldBeNil)
 
-		builder := &Builder{}
-		dbJsonMap, err = builder.SetConn(db).SetDialect("unsupported").SetTableName("j_map").JSONMap()
+		dbJsonMap, err = Build().SetConn(db).SetDialect("unsupported").SetTableName("j_map").JSONMap()
 		So(err, ShouldNotBeNil)
 		So(dbJsonMap, ShouldBeNil)
 
-		dbJsonMap, err = builder.SetConn(db).SetDialect(testDialect).SetTableName("j_map").JSONMap()
+		dbJsonMap, err = Build().SetConn(db).SetDialect(testDialect).SetTableName("j_map").JSONMap()
 		So(err, ShouldBeNil)
 		So(dbJsonMap, ShouldNotBeNil)
 	}

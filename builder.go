@@ -5,7 +5,11 @@ import (
 	"strings"
 )
 
-type Builder struct {
+func Build() *builder {
+	return &builder{}
+}
+
+type builder struct {
 	tableName   string
 	dialect     string
 	conn        *sql.DB
@@ -14,22 +18,22 @@ type Builder struct {
 	finalSchema string
 }
 
-func (b *Builder) SetTableName(table string) *Builder {
+func (b *builder) SetTableName(table string) *builder {
 	b.tableName = escaped(table)
 	return b
 }
 
-func (b *Builder) SetConn(conn *sql.DB) *Builder {
+func (b *builder) SetConn(conn *sql.DB) *builder {
 	b.conn = conn
 	return b
 }
 
-func (b *Builder) SetDialect(dialect string) *Builder {
+func (b *builder) SetDialect(dialect string) *builder {
 	b.dialect = dialect
 	return b
 }
 
-func (b *Builder) AddForeignKeys(keys ...*ForeignKey) *Builder {
+func (b *builder) AddForeignKeys(keys ...*ForeignKey) *builder {
 	if b.keys == nil {
 		b.keys = map[string]*ForeignKey{}
 	}
@@ -39,7 +43,7 @@ func (b *Builder) AddForeignKeys(keys ...*ForeignKey) *Builder {
 	return b
 }
 
-func (b *Builder) AddIndexes(indexes ...*Index) *Builder {
+func (b *builder) AddIndexes(indexes ...*Index) *builder {
 	if b.indexes == nil {
 		b.indexes = map[string]*Index{}
 	}
@@ -50,7 +54,7 @@ func (b *Builder) AddIndexes(indexes ...*Index) *Builder {
 	return b
 }
 
-func (b *Builder) Map(opts ...Option) (*Map, error) {
+func (b *builder) Map(opts ...Option) (*Map, error) {
 	if b.dialect != SQLite3 && b.dialect != MySQL {
 		return nil, DialectNotSupported
 	}
@@ -72,7 +76,7 @@ func (b *Builder) Map(opts ...Option) (*Map, error) {
 	}, nil
 }
 
-func (b *Builder) JSONMap(opts ...Option) (*JSONMap, error) {
+func (b *builder) JSONMap(opts ...Option) (*JSONMap, error) {
 	if b.dialect != SQLite3 && b.dialect != MySQL {
 		return nil, DialectNotSupported
 	}
@@ -104,7 +108,7 @@ func (b *Builder) JSONMap(opts ...Option) (*JSONMap, error) {
 	}, nil
 }
 
-func (b *Builder) DoubleMap(opts ...Option) (*DoubleMap, error) {
+func (b *builder) DoubleMap(opts ...Option) (*DoubleMap, error) {
 	if b.dialect != SQLite3 && b.dialect != MySQL {
 		return nil, DialectNotSupported
 	}
@@ -128,7 +132,7 @@ func (b *Builder) DoubleMap(opts ...Option) (*DoubleMap, error) {
 	}, err
 }
 
-func (b *Builder) JSONDoubleMap(opts ...Option) (*JSONDoubleMap, error) {
+func (b *builder) JSONDoubleMap(opts ...Option) (*JSONDoubleMap, error) {
 	if b.dialect != SQLite3 && b.dialect != MySQL {
 		return nil, DialectNotSupported
 	}
@@ -166,7 +170,7 @@ func (b *Builder) JSONDoubleMap(opts ...Option) (*JSONDoubleMap, error) {
 	}, nil
 }
 
-func (b *Builder) List(opts ...Option) (*List, error) {
+func (b *builder) List(opts ...Option) (*List, error) {
 	if b.dialect != SQLite3 && b.dialect != MySQL {
 		return nil, DialectNotSupported
 	}
@@ -196,7 +200,7 @@ func (b *Builder) List(opts ...Option) (*List, error) {
 	}, nil
 }
 
-func (b *Builder) JSONList(opts ...Option) (*JSONList, error) {
+func (b *builder) JSONList(opts ...Option) (*JSONList, error) {
 	if b.dialect != SQLite3 && b.dialect != MySQL {
 		return nil, DialectNotSupported
 	}
@@ -236,7 +240,7 @@ func (b *Builder) JSONList(opts ...Option) (*JSONList, error) {
 	}, nil
 }
 
-func (b *Builder) KeyValueList(opts ...Option) (*MappingList, error) {
+func (b *builder) KeyValueList(opts ...Option) (*MappingList, error) {
 	if b.dialect != SQLite3 && b.dialect != MySQL {
 		return nil, DialectNotSupported
 	}
@@ -259,7 +263,7 @@ func (b *Builder) KeyValueList(opts ...Option) (*MappingList, error) {
 	}, nil
 }
 
-func (b *Builder) KeyJSONValueList(opts ...Option) (*JSONMappingList, error) {
+func (b *builder) KeyJSONValueList(opts ...Option) (*JSONMappingList, error) {
 	if b.dialect != SQLite3 && b.dialect != MySQL {
 		return nil, DialectNotSupported
 	}
@@ -292,7 +296,7 @@ func (b *Builder) KeyJSONValueList(opts ...Option) (*JSONMappingList, error) {
 	}, nil
 }
 
-func (b *Builder) initTable(fields []string, opts ...Option) (*DB, error) {
+func (b *builder) initTable(fields []string, opts ...Option) (*DB, error) {
 	var postInitExec []string
 
 	var (
@@ -358,10 +362,10 @@ func (b *Builder) initTable(fields []string, opts ...Option) (*DB, error) {
 	return db, nil
 }
 
-func (b *Builder) GetTableName() string {
+func (b *builder) GetTableName() string {
 	return b.tableName
 }
 
-func (b *Builder) GetDialect() string {
+func (b *builder) GetDialect() string {
 	return b.dialect
 }

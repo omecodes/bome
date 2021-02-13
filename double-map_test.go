@@ -43,13 +43,11 @@ func initDoubleDbMap(t *testing.T) {
 		_, err = db.Exec("drop table if exists d_map")
 		So(err, ShouldBeNil)
 
-		builder := &Builder{}
-		dbDoubleMap, err = builder.SetConn(db).SetDialect("unsupported").SetTableName("d_map").DoubleMap()
+		dbDoubleMap, err = Build().SetConn(db).SetDialect("unsupported").SetTableName("d_map").DoubleMap()
 		So(err, ShouldNotBeNil)
 		So(dbDoubleMap, ShouldBeNil)
 
-		builder = &Builder{}
-		dbDoubleMap, err = builder.SetConn(db).SetDialect(testDialect).SetTableName("d_map").DoubleMap()
+		dbDoubleMap, err = Build().SetConn(db).SetDialect(testDialect).SetTableName("d_map").DoubleMap()
 		So(err, ShouldBeNil)
 		So(dbDoubleMap, ShouldNotBeNil)
 	}

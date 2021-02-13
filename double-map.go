@@ -24,17 +24,14 @@ func (s *DoubleMap) Keys() []string {
 }
 
 func (s *DoubleMap) Transaction(ctx context.Context) (context.Context, *DoubleMap, error) {
-	if s.tx != nil {
-		tx := transaction(ctx)
-		if tx == nil {
-			return contextWithTransaction(ctx, s.tx), s, nil
-		}
-		return ctx, s, nil
-	}
-
 	tx := transaction(ctx)
 	if tx == nil {
-		tx, err := s.DB.BeginTx()
+		if s.tx != nil {
+			return contextWithTransaction(ctx, s.tx), s, nil
+		}
+
+		var err error
+		tx, err = s.DB.BeginTx()
 		if err != nil {
 			return ctx, nil, err
 		}
@@ -47,7 +44,38 @@ func (s *DoubleMap) Transaction(ctx context.Context) (context.Context, *DoubleMa
 		}, nil
 	}
 
-	return ctx, &DoubleMap{
+	if s.tx != nil {
+		if s.tx.db.sqlDb != tx.db.sqlDb {
+			newCtx := ContextWithCommitActions(ctx, tx.Commit)
+			newCtx = ContextWithRollbackActions(newCtx, tx.Rollback)
+
+			var err error
+			tx, err = s.DB.BeginTx()
+			if err != nil {
+				return ctx, nil, err
+			}
+
+			return contextWithTransaction(newCtx, tx), &DoubleMap{
+				tableName: s.tableName,
+				tx:        tx,
+				dialect:   s.dialect,
+			}, nil
+		}
+
+		return ctx, &DoubleMap{
+			tableName: s.tableName,
+			tx:        tx,
+			dialect:   s.dialect,
+		}, nil
+	}
+
+	tx, err := s.DB.BeginTx()
+	if err != nil {
+		return ctx, nil, err
+	}
+
+	newCtx := contextWithTransaction(ctx, tx)
+	return newCtx, &DoubleMap{
 		tableName: s.tableName,
 		tx:        tx,
 		dialect:   s.dialect,

@@ -23,33 +23,61 @@ func (l *List) Keys() []string {
 }
 
 func (l *List) Transaction(ctx context.Context) (context.Context, *List, error) {
-	if l.tx != nil {
-		tx := transaction(ctx)
-		if tx == nil {
-			return contextWithTransaction(ctx, l.tx), l, nil
-		}
-		return ctx, l, nil
-	}
-
 	tx := transaction(ctx)
 	if tx == nil {
-		tx, err := l.DB.BeginTx()
+		if l.tx != nil {
+			return contextWithTransaction(ctx, l.tx), l, nil
+		}
+
+		var err error
+		tx, err = l.DB.BeginTx()
 		if err != nil {
 			return ctx, nil, err
 		}
 
 		newCtx := contextWithTransaction(ctx, tx)
 		return newCtx, &List{
-			dialect:   l.dialect,
 			tableName: l.tableName,
 			tx:        tx,
+			dialect:   l.dialect,
 		}, nil
 	}
 
-	return ctx, &List{
-		dialect:   l.dialect,
+	if l.tx != nil {
+		if l.tx.db.sqlDb != tx.db.sqlDb {
+			newCtx := ContextWithCommitActions(ctx, tx.Commit)
+			newCtx = ContextWithRollbackActions(newCtx, tx.Rollback)
+
+			var err error
+			tx, err = l.DB.BeginTx()
+			if err != nil {
+				return ctx, nil, err
+			}
+
+			return contextWithTransaction(newCtx, tx), &List{
+				tableName: l.tableName,
+				tx:        tx,
+				dialect:   l.dialect,
+			}, nil
+		}
+
+		return ctx, &List{
+			tableName: l.tableName,
+			tx:        tx,
+			dialect:   l.dialect,
+		}, nil
+	}
+
+	tx, err := l.DB.BeginTx()
+	if err != nil {
+		return ctx, nil, err
+	}
+
+	newCtx := contextWithTransaction(ctx, tx)
+	return newCtx, &List{
 		tableName: l.tableName,
 		tx:        tx,
+		dialect:   l.dialect,
 	}, nil
 }
 

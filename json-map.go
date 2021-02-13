@@ -25,17 +25,14 @@ func (m *JSONMap) Keys() []string {
 }
 
 func (m *JSONMap) Transaction(ctx context.Context) (context.Context, *JSONMap, error) {
-	if m.tx != nil {
-		tx := transaction(ctx)
-		if tx == nil {
-			return contextWithTransaction(ctx, m.tx), m, nil
-		}
-		return ctx, m, nil
-	}
-
 	tx := transaction(ctx)
 	if tx == nil {
-		tx, err := m.DB.BeginTx()
+		if m.tx != nil {
+			return contextWithTransaction(ctx, m.tx), m, nil
+		}
+
+		var err error
+		tx, err = m.DB.BeginTx()
 		if err != nil {
 			return ctx, nil, err
 		}
@@ -43,13 +40,14 @@ func (m *JSONMap) Transaction(ctx context.Context) (context.Context, *JSONMap, e
 		newCtx := contextWithTransaction(ctx, tx)
 		return newCtx, &JSONMap{
 			JsonValueHolder: &JsonValueHolder{
-				tx:      m.tx,
+				field:   "value",
 				dialect: m.dialect,
+				tx:      tx,
 			},
 			Map: &Map{
 				tableName: m.tableName,
-				tx:        tx,
 				dialect:   m.dialect,
+				tx:        tx,
 			},
 			tableName: m.tableName,
 			tx:        tx,
@@ -57,15 +55,67 @@ func (m *JSONMap) Transaction(ctx context.Context) (context.Context, *JSONMap, e
 		}, nil
 	}
 
-	return ctx, &JSONMap{
-		JsonValueHolder: &JsonValueHolder{
-			tx:      m.tx,
-			dialect: m.dialect,
-		},
-		Map: &Map{
+	if m.tx != nil {
+		if m.tx.db.sqlDb != tx.db.sqlDb {
+			newCtx := ContextWithCommitActions(ctx, tx.Commit)
+			newCtx = ContextWithRollbackActions(newCtx, tx.Rollback)
+
+			var err error
+			tx, err = m.DB.BeginTx()
+			if err != nil {
+				return ctx, nil, err
+			}
+
+			return contextWithTransaction(newCtx, tx), &JSONMap{
+				JsonValueHolder: &JsonValueHolder{
+					field:   "value",
+					dialect: m.dialect,
+					tx:      tx,
+				},
+				Map: &Map{
+					tableName: m.tableName,
+					dialect:   m.dialect,
+					tx:        tx,
+				},
+				tableName: m.tableName,
+				tx:        tx,
+				dialect:   m.dialect,
+			}, nil
+		}
+
+		return ctx, &JSONMap{
+			JsonValueHolder: &JsonValueHolder{
+				field:   "value",
+				dialect: m.dialect,
+				tx:      tx,
+			},
+			Map: &Map{
+				tableName: m.tableName,
+				dialect:   m.dialect,
+				tx:        tx,
+			},
 			tableName: m.tableName,
 			tx:        tx,
 			dialect:   m.dialect,
+		}, nil
+	}
+
+	tx, err := m.DB.BeginTx()
+	if err != nil {
+		return ctx, nil, err
+	}
+
+	newCtx := contextWithTransaction(ctx, tx)
+	return newCtx, &JSONMap{
+		JsonValueHolder: &JsonValueHolder{
+			field:   "value",
+			dialect: m.dialect,
+			tx:      tx,
+		},
+		Map: &Map{
+			tableName: m.tableName,
+			dialect:   m.dialect,
+			tx:        tx,
 		},
 		tableName: m.tableName,
 		tx:        tx,

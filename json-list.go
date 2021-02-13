@@ -24,18 +24,15 @@ func (l *JSONList) Keys() []string {
 	}
 }
 
-func (l *JSONList) Transaction(ctx context.Context) (context.Context, *JSONList, error) {
-	if l.tx != nil {
-		tx := transaction(ctx)
-		if tx == nil {
-			return contextWithTransaction(ctx, l.tx), l, nil
-		}
-		return ctx, l, nil
-	}
-
+func (s *JSONList) Transaction(ctx context.Context) (context.Context, *JSONList, error) {
 	tx := transaction(ctx)
 	if tx == nil {
-		tx, err := l.DB.BeginTx()
+		if s.tx != nil {
+			return contextWithTransaction(ctx, s.tx), s, nil
+		}
+
+		var err error
+		tx, err = s.DB.BeginTx()
 		if err != nil {
 			return ctx, nil, err
 		}
@@ -43,33 +40,86 @@ func (l *JSONList) Transaction(ctx context.Context) (context.Context, *JSONList,
 		newCtx := contextWithTransaction(ctx, tx)
 		return newCtx, &JSONList{
 			JsonValueHolder: &JsonValueHolder{
-				tx:      l.tx,
-				dialect: l.dialect,
+				field:   "value",
+				dialect: s.dialect,
+				tx:      tx,
 			},
 			List: &List{
+				tableName: s.tableName,
+				dialect:   s.dialect,
 				tx:        tx,
-				tableName: l.tableName,
-				dialect:   l.dialect,
 			},
-			tableName: l.tableName,
+			tableName: s.tableName,
 			tx:        tx,
-			dialect:   l.dialect,
+			dialect:   s.dialect,
 		}, nil
 	}
 
-	return ctx, &JSONList{
+	if s.tx != nil {
+		if s.tx.db.sqlDb != tx.db.sqlDb {
+			newCtx := ContextWithCommitActions(ctx, tx.Commit)
+			newCtx = ContextWithRollbackActions(newCtx, tx.Rollback)
+
+			var err error
+			tx, err = s.DB.BeginTx()
+			if err != nil {
+				return ctx, nil, err
+			}
+
+			return contextWithTransaction(newCtx, tx), &JSONList{
+				JsonValueHolder: &JsonValueHolder{
+					field:   "value",
+					dialect: s.dialect,
+					tx:      tx,
+				},
+				List: &List{
+					tableName: s.tableName,
+					dialect:   s.dialect,
+					tx:        tx,
+				},
+				tableName: s.tableName,
+				tx:        tx,
+				dialect:   s.dialect,
+			}, nil
+		}
+
+		return ctx, &JSONList{
+			JsonValueHolder: &JsonValueHolder{
+				field:   "value",
+				dialect: s.dialect,
+				tx:      tx,
+			},
+			List: &List{
+				tableName: s.tableName,
+				dialect:   s.dialect,
+				tx:        tx,
+			},
+			tableName: s.tableName,
+			tx:        tx,
+			dialect:   s.dialect,
+		}, nil
+	}
+
+	tx, err := s.DB.BeginTx()
+	if err != nil {
+		return ctx, nil, err
+	}
+
+	newCtx := contextWithTransaction(ctx, tx)
+	return newCtx, &JSONList{
 		JsonValueHolder: &JsonValueHolder{
-			tx:      l.tx,
-			dialect: l.dialect,
+			field:   "value",
+			dialect: s.dialect,
+			tx:      tx,
 		},
 		List: &List{
+			tableName: s.tableName,
+			dialect:   s.dialect,
 			tx:        tx,
-			tableName: l.tableName,
-			dialect:   l.dialect,
 		},
-		tableName: l.tableName,
+		tableName: s.tableName,
 		tx:        tx,
-		dialect:   l.dialect,
+		dialect:   s.dialect,
 	}, nil
 }
 

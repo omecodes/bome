@@ -27,12 +27,11 @@ func initJsonList(t *testing.T) {
 		_, err = db.Exec("drop table if exists j_list")
 		So(err, ShouldBeNil)
 
-		builder := &Builder{}
-		dbJsonList, err = builder.SetConn(db).SetDialect("unsupported").SetTableName("j_list").JSONList()
+		dbJsonList, err = Build().SetConn(db).SetDialect("unsupported").SetTableName("j_list").JSONList()
 		So(err, ShouldNotBeNil)
 		So(dbJsonList, ShouldBeNil)
 
-		dbJsonList, err = builder.SetConn(db).SetDialect(testDialect).SetTableName("j_list").JSONList()
+		dbJsonList, err = Build().SetConn(db).SetDialect(testDialect).SetTableName("j_list").JSONList()
 		So(err, ShouldBeNil)
 		So(dbJsonList, ShouldNotBeNil)
 	}

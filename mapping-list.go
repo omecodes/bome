@@ -23,17 +23,14 @@ func (l *MappingList) Keys() []string {
 }
 
 func (l *MappingList) Transaction(ctx context.Context) (context.Context, *MappingList, error) {
-	if l.tx != nil {
-		tx := transaction(ctx)
-		if tx == nil {
-			return contextWithTransaction(ctx, l.tx), l, nil
-		}
-		return ctx, l, nil
-	}
-
 	tx := transaction(ctx)
 	if tx == nil {
-		tx, err := l.DB.BeginTx()
+		if l.tx != nil {
+			return contextWithTransaction(ctx, l.tx), l, nil
+		}
+
+		var err error
+		tx, err = l.DB.BeginTx()
 		if err != nil {
 			return ctx, nil, err
 		}
@@ -46,7 +43,38 @@ func (l *MappingList) Transaction(ctx context.Context) (context.Context, *Mappin
 		}, nil
 	}
 
-	return ctx, &MappingList{
+	if l.tx != nil {
+		if l.tx.db.sqlDb != tx.db.sqlDb {
+			newCtx := ContextWithCommitActions(ctx, tx.Commit)
+			newCtx = ContextWithRollbackActions(newCtx, tx.Rollback)
+
+			var err error
+			tx, err = l.DB.BeginTx()
+			if err != nil {
+				return ctx, nil, err
+			}
+
+			return contextWithTransaction(newCtx, tx), &MappingList{
+				tableName: l.tableName,
+				tx:        tx,
+				dialect:   l.dialect,
+			}, nil
+		}
+
+		return ctx, &MappingList{
+			tableName: l.tableName,
+			tx:        tx,
+			dialect:   l.dialect,
+		}, nil
+	}
+
+	tx, err := l.DB.BeginTx()
+	if err != nil {
+		return ctx, nil, err
+	}
+
+	newCtx := contextWithTransaction(ctx, tx)
+	return newCtx, &MappingList{
 		tableName: l.tableName,
 		tx:        tx,
 		dialect:   l.dialect,

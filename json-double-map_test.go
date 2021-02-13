@@ -41,13 +41,11 @@ func initJsonDoubleDbMap() {
 		_, err = db.Exec("drop table if exists jd_map;")
 		So(err, ShouldBeNil)
 
-		builder := &Builder{}
-
-		dbJsonDoubleMap, err = builder.SetConn(db).SetDialect("unsupported").SetTableName("jd_map").JSONDoubleMap()
+		dbJsonDoubleMap, err = Build().SetConn(db).SetDialect("unsupported").SetTableName("jd_map").JSONDoubleMap()
 		So(err, ShouldNotBeNil)
 		So(dbJsonDoubleMap, ShouldBeNil)
 
-		dbJsonDoubleMap, err = builder.SetConn(db).SetDialect(testDialect).SetTableName("jd_map").JSONDoubleMap()
+		dbJsonDoubleMap, err = Build().SetConn(db).SetDialect(testDialect).SetTableName("jd_map").JSONDoubleMap()
 		So(err, ShouldBeNil)
 		So(dbJsonDoubleMap, ShouldNotBeNil)
 	}

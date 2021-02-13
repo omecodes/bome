@@ -31,13 +31,11 @@ func initList(t *testing.T) {
 		_, err = db.Exec("drop table if exists list")
 		So(err, ShouldBeNil)
 
-		builder := &Builder{}
-
-		list, err = builder.SetConn(db).SetTableName("list").SetDialect("unsupported").List()
+		list, err = Build().SetConn(db).SetTableName("list").SetDialect("unsupported").List()
 		So(err, ShouldNotBeNil)
 		So(list, ShouldBeNil)
 
-		list, err = builder.SetConn(db).SetTableName("list").SetDialect(testDialect).List()
+		list, err = Build().SetConn(db).SetTableName("list").SetDialect(testDialect).List()
 		So(err, ShouldBeNil)
 		So(list, ShouldNotBeNil)
 	}

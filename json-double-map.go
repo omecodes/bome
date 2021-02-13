@@ -25,17 +25,14 @@ func (s *JSONDoubleMap) Keys() []string {
 }
 
 func (s *JSONDoubleMap) Transaction(ctx context.Context) (context.Context, *JSONDoubleMap, error) {
-	if s.tx != nil {
-		tx := transaction(ctx)
-		if tx == nil {
-			return contextWithTransaction(ctx, s.tx), s, nil
-		}
-		return ctx, s, nil
-	}
-
 	tx := transaction(ctx)
 	if tx == nil {
-		tx, err := s.DB.BeginTx()
+		if s.tx != nil {
+			return contextWithTransaction(ctx, s.tx), s, nil
+		}
+
+		var err error
+		tx, err = s.DB.BeginTx()
 		if err != nil {
 			return ctx, nil, err
 		}
@@ -43,13 +40,14 @@ func (s *JSONDoubleMap) Transaction(ctx context.Context) (context.Context, *JSON
 		newCtx := contextWithTransaction(ctx, tx)
 		return newCtx, &JSONDoubleMap{
 			JsonValueHolder: &JsonValueHolder{
-				tx:      s.tx,
+				field:   "value",
 				dialect: s.dialect,
+				tx:      tx,
 			},
 			DoubleMap: &DoubleMap{
 				tableName: s.tableName,
-				tx:        s.tx,
 				dialect:   s.dialect,
+				tx:        tx,
 			},
 			tableName: s.tableName,
 			tx:        tx,
@@ -57,15 +55,67 @@ func (s *JSONDoubleMap) Transaction(ctx context.Context) (context.Context, *JSON
 		}, nil
 	}
 
-	return ctx, &JSONDoubleMap{
+	if s.tx != nil {
+		if s.tx.db.sqlDb != tx.db.sqlDb {
+			newCtx := ContextWithCommitActions(ctx, tx.Commit)
+			newCtx = ContextWithRollbackActions(newCtx, tx.Rollback)
+
+			var err error
+			tx, err = s.DB.BeginTx()
+			if err != nil {
+				return ctx, nil, err
+			}
+
+			return contextWithTransaction(newCtx, tx), &JSONDoubleMap{
+				JsonValueHolder: &JsonValueHolder{
+					field:   "value",
+					dialect: s.dialect,
+					tx:      tx,
+				},
+				DoubleMap: &DoubleMap{
+					tableName: s.tableName,
+					dialect:   s.dialect,
+					tx:        tx,
+				},
+				tableName: s.tableName,
+				tx:        tx,
+				dialect:   s.dialect,
+			}, nil
+		}
+
+		return ctx, &JSONDoubleMap{
+			JsonValueHolder: &JsonValueHolder{
+				field:   "value",
+				dialect: s.dialect,
+				tx:      tx,
+			},
+			DoubleMap: &DoubleMap{
+				tableName: s.tableName,
+				dialect:   s.dialect,
+				tx:        tx,
+			},
+			tableName: s.tableName,
+			tx:        tx,
+			dialect:   s.dialect,
+		}, nil
+	}
+
+	tx, err := s.DB.BeginTx()
+	if err != nil {
+		return ctx, nil, err
+	}
+
+	newCtx := contextWithTransaction(ctx, tx)
+	return newCtx, &JSONDoubleMap{
 		JsonValueHolder: &JsonValueHolder{
-			tx:      s.tx,
+			field:   "value",
 			dialect: s.dialect,
+			tx:      tx,
 		},
 		DoubleMap: &DoubleMap{
 			tableName: s.tableName,
-			tx:        s.tx,
 			dialect:   s.dialect,
+			tx:        tx,
 		},
 		tableName: s.tableName,
 		tx:        tx,

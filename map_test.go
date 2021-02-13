@@ -31,12 +31,11 @@ func initDbMap(t *testing.T) {
 		_, err = db.Exec("drop table if exists map")
 		So(err, ShouldBeNil)
 
-		builder := &Builder{}
-		dbMap, err = builder.SetConn(db).SetDialect("unsupported").SetTableName("map").Map()
+		dbMap, err = Build().SetConn(db).SetDialect("unsupported").SetTableName("map").Map()
 		So(err, ShouldNotBeNil)
 		So(dbMap, ShouldBeNil)
 
-		dbMap, err = builder.SetConn(db).SetDialect(testDialect).SetTableName("map").Map()
+		dbMap, err = Build().SetConn(db).SetDialect(testDialect).SetTableName("map").Map()
 		So(err, ShouldBeNil)
 		So(dbMap, ShouldNotBeNil)
 	}
