@@ -16,11 +16,11 @@ func (s *JsonValueHolder) Transaction(ctx context.Context) (context.Context, *Js
 	tx := transaction(ctx)
 	if tx == nil {
 		if s.tx != nil {
-			return contextWithTransaction(ctx, s.tx), s, nil
+			return contextWithTransaction(ctx, s.tx.New(s.DB)), s, nil
 		}
 
 		var err error
-		tx, err = s.DB.BeginTx()
+		tx, err = s.BeginTx()
 		if err != nil {
 			return ctx, nil, err
 		}
@@ -36,11 +36,12 @@ func (s *JsonValueHolder) Transaction(ctx context.Context) (context.Context, *Js
 		if s.tx.db.sqlDb != tx.db.sqlDb {
 			newCtx := ContextWithCommitActions(ctx, tx.Commit)
 			newCtx = ContextWithRollbackActions(newCtx, tx.Rollback)
-			return contextWithTransaction(newCtx, s.tx), s, nil
+			return contextWithTransaction(newCtx, s.tx.New(s.DB)), s, nil
 		}
 		return ctx, s, nil
 	}
 
+	tx = tx.New(s.DB)
 	newCtx := contextWithTransaction(ctx, tx)
 	return newCtx, &JsonValueHolder{
 		tx:      tx,

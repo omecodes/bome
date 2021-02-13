@@ -36,19 +36,16 @@ type Result struct {
 
 // DB is an SQL database wrapper
 type DB struct {
-	sqlDb                      *sql.DB
-	mux                        *sync.RWMutex
-	dialect                    string
-	isSQLite                   bool
-	compiledStatements         map[string]*sql.Stmt
-	vars                       map[string]string
-	tableDefs                  []string
-	registeredStatements       map[string]string
-	registeredSQLiteStatements map[string]string
-	registeredMySQLStatements  map[string]string
-	migrationScripts           []string
-	scanners                   map[string]Scanner
-	initDone                   bool
+	sqlDb              *sql.DB
+	mux                *sync.RWMutex
+	dialect            string
+	isSQLite           bool
+	compiledStatements map[string]*sql.Stmt
+	vars               map[string]string
+	tableDefs          []string
+	migrationScripts   []string
+	scanners           map[string]Scanner
+	initDone           bool
 }
 
 // Open detects and creates an instance of DB DB according to the dialect
@@ -144,43 +141,6 @@ func (db *DB) init() error {
 			if err != nil {
 				return err
 			}
-		}
-	}
-
-	var specificStatements map[string]string
-	if db.isSQLite && db.registeredSQLiteStatements != nil {
-		specificStatements = db.registeredSQLiteStatements
-	} else {
-		specificStatements = db.registeredMySQLStatements
-	}
-
-	if specificStatements != nil {
-		if db.registeredStatements == nil {
-			db.registeredStatements = map[string]string{}
-		}
-		for name, stmt := range specificStatements {
-			db.registeredStatements[name] = stmt
-		}
-	}
-
-	for name, stmt := range db.registeredStatements {
-		for name, value := range db.vars {
-			stmt = strings.Replace(stmt, name, value, -1)
-		}
-		db.registeredStatements[name] = stmt
-	}
-
-	if db.registeredStatements != nil && len(db.registeredStatements) > 0 {
-		db.compiledStatements = map[string]*sql.Stmt{}
-		for name, stmt := range db.registeredStatements {
-			/*for name, value := range db.vars {
-				stmt = strings.Replace(stmt, name, value, -1)
-			} */
-			compiledStmt, err := db.sqlDb.Prepare(stmt)
-			if err != nil {
-				return err
-			}
-			db.compiledStatements[name] = compiledStmt
 		}
 	}
 
@@ -326,34 +286,7 @@ func (db *DB) AddForeignKey(fk *ForeignKey) error {
 	return nil
 }
 
-// AddStatement registers a statement that can later be called with the given name
-func (db *DB) AddStatement(name string, statementStr string) *DB {
-	if db.registeredStatements == nil {
-		db.registeredStatements = map[string]string{}
-	}
-	db.registeredStatements[name] = statementStr
-	return db
-}
-
-// AddSQLiteStatement registers an specific SQLite statement that can later be called with the given name
-func (db *DB) AddSQLiteStatement(name string, statementStr string) *DB {
-	if db.registeredSQLiteStatements == nil {
-		db.registeredSQLiteStatements = map[string]string{}
-	}
-	db.registeredSQLiteStatements[name] = statementStr
-	return db
-}
-
-// AddMySQLStatement registers a specific MySQL statement that can later be called with the given name
-func (db *DB) AddMySQLStatement(name string, statementStr string) *DB {
-	if db.registeredMySQLStatements == nil {
-		db.registeredMySQLStatements = map[string]string{}
-	}
-	db.registeredMySQLStatements[name] = statementStr
-	return db
-}
-
-// RegisterScanner registers a scanner with a name wich is used when querying data
+// RegisterScanner registers a scanner with a name which is used when querying data
 func (db *DB) RegisterScanner(name string, scanner Scanner) *DB {
 	if db.scanners == nil {
 		db.scanners = map[string]Scanner{}

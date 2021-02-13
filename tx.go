@@ -2,21 +2,20 @@ package bome
 
 import (
 	"database/sql"
-	"github.com/google/uuid"
 	"strings"
 )
 
 // TX is a transaction token
 type TX struct {
-	id string
 	db *DB
 	*sql.Tx
 }
 
-// NewTransaction initialize a TX object and generate its id
-func NewTransaction() *TX {
+// New creates a new TX with the passed DB
+func (tx *TX) New(db *DB) *TX {
 	return &TX{
-		id: uuid.New().String(),
+		db: db,
+		Tx: tx.Tx,
 	}
 }
 

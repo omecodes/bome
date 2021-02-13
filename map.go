@@ -26,11 +26,11 @@ func (m *Map) Transaction(ctx context.Context) (context.Context, *Map, error) {
 	tx := transaction(ctx)
 	if tx == nil {
 		if m.tx != nil {
-			return contextWithTransaction(ctx, m.tx), m, nil
+			return contextWithTransaction(ctx, m.tx.New(m.DB)), m, nil
 		}
 
 		var err error
-		tx, err = m.DB.BeginTx()
+		tx, err = m.BeginTx()
 		if err != nil {
 			return ctx, nil, err
 		}
@@ -47,11 +47,12 @@ func (m *Map) Transaction(ctx context.Context) (context.Context, *Map, error) {
 		if m.tx.db.sqlDb != tx.db.sqlDb {
 			newCtx := ContextWithCommitActions(ctx, tx.Commit)
 			newCtx = ContextWithRollbackActions(newCtx, tx.Rollback)
-			return contextWithTransaction(newCtx, m.tx), m, nil
+			return contextWithTransaction(newCtx, m.tx.New(m.DB)), m, nil
 		}
 		return ctx, m, nil
 	}
 
+	tx = tx.New(m.DB)
 	newCtx := contextWithTransaction(ctx, tx)
 	return newCtx, &Map{
 		tableName: m.tableName,

@@ -28,11 +28,11 @@ func (l *JSONList) Transaction(ctx context.Context) (context.Context, *JSONList,
 	tx := transaction(ctx)
 	if tx == nil {
 		if l.tx != nil {
-			return contextWithTransaction(ctx, l.tx), l, nil
+			return contextWithTransaction(ctx, l.tx.New(l.DB)), l, nil
 		}
 
 		var err error
-		tx, err = l.DB.BeginTx()
+		tx, err = l.BeginTx()
 		if err != nil {
 			return ctx, nil, err
 		}
@@ -58,11 +58,12 @@ func (l *JSONList) Transaction(ctx context.Context) (context.Context, *JSONList,
 		if l.tx.db.sqlDb != tx.db.sqlDb {
 			newCtx := ContextWithCommitActions(ctx, tx.Commit)
 			newCtx = ContextWithRollbackActions(newCtx, tx.Rollback)
-			return contextWithTransaction(newCtx, l.tx), l, nil
+			return contextWithTransaction(newCtx, l.tx.New(l.DB)), l, nil
 		}
 		return ctx, l, nil
 	}
 
+	tx = tx.New(l.DB)
 	newCtx := contextWithTransaction(ctx, tx)
 	return newCtx, &JSONList{
 		JsonValueHolder: &JsonValueHolder{
