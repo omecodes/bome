@@ -300,9 +300,22 @@ func (b *builder) initTable(fields []string, opts ...Option) (*DB, error) {
 	var postInitExec []string
 
 	var (
-		err error
-		db  *DB
+		err     error
+		db      *DB
+		options options
 	)
+
+	for _, opt := range opts {
+		opt(&options)
+	}
+
+	for _, fk := range options.foreignKeys {
+		b.AddForeignKeys(fk)
+	}
+
+	for _, ind := range options.indexes {
+		b.AddIndexes(ind)
+	}
 
 	if b.dialect == SQLite3 {
 		db, err = NewLite(b.conn)
