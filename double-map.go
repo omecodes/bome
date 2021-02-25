@@ -124,7 +124,7 @@ func (s *DoubleMap) Update(entry *DoubleMapEntry) error {
 
 func (s *DoubleMap) Upsert(entry *DoubleMapEntry) error {
 	err := s.Save(entry)
-	if err != nil && IsPrimaryKeyConstraintError(err) {
+	if err != nil && isPrimaryKeyConstraintError(err) {
 		err = s.Update(entry)
 	}
 	return err

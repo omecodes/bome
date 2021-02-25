@@ -2,6 +2,7 @@ package bome
 
 import (
 	"context"
+	"github.com/omecodes/errors"
 	"log"
 )
 
@@ -78,7 +79,7 @@ func (m *Map) Update(entry *MapEntry) error {
 
 func (m *Map) Upsert(entry *MapEntry) error {
 	err := m.Save(entry)
-	if !IsPrimaryKeyConstraintError(err) {
+	if !isPrimaryKeyConstraintError(err) {
 		return err
 	}
 	return m.Update(entry)
@@ -111,7 +112,7 @@ func (m *Map) TotalSize() (int64, error) {
 func (m *Map) Contains(key string) (bool, error) {
 	res, err := m.Client().QueryFirst("select 1 from $table$ where name=?;", BoolScanner, key)
 	if err != nil {
-		if IsNotFound(err) {
+		if errors.IsNotFound(err) {
 			return false, nil
 		}
 		return false, err

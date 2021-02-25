@@ -2,6 +2,7 @@ package bome
 
 import (
 	"database/sql"
+	"github.com/omecodes/errors"
 	"strings"
 )
 
@@ -72,7 +73,7 @@ func (tx *TX) QueryFirst(query string, scannerName string, args ...interface{}) 
 	}()
 
 	if !cursor.HasNext() {
-		return nil, EntryNotFound
+		return nil, errors.NotFound("no result found")
 	}
 	return cursor.Next()
 }

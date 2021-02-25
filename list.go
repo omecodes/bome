@@ -81,7 +81,7 @@ func (l *List) Update(entry *ListEntry) error {
 
 func (l *List) Upsert(entry *ListEntry) error {
 	err := l.Save(entry)
-	if !IsPrimaryKeyConstraintError(err) {
+	if !isPrimaryKeyConstraintError(err) {
 		return err
 	}
 	return l.Update(entry)

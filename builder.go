@@ -2,6 +2,7 @@ package bome
 
 import (
 	"database/sql"
+	"github.com/omecodes/errors"
 	"strings"
 )
 
@@ -56,7 +57,7 @@ func (b *builder) AddIndexes(indexes ...*Index) *builder {
 
 func (b *builder) Map(opts ...Option) (*Map, error) {
 	if b.dialect != SQLite3 && b.dialect != MySQL {
-		return nil, DialectNotSupported
+		return nil, errors.Unsupported("sql dialect not supported", errors.Details{Key: "type", Value: "dialect"}, errors.Details{Key: "name", Value: b.dialect})
 	}
 
 	fields := []string{
@@ -78,7 +79,7 @@ func (b *builder) Map(opts ...Option) (*Map, error) {
 
 func (b *builder) JSONMap(opts ...Option) (*JSONMap, error) {
 	if b.dialect != SQLite3 && b.dialect != MySQL {
-		return nil, DialectNotSupported
+		return nil, errors.Unsupported("sql dialect not supported", errors.Details{Key: "type", Value: "dialect"}, errors.Details{Key: "name", Value: b.dialect})
 	}
 
 	fields := []string{
@@ -110,7 +111,7 @@ func (b *builder) JSONMap(opts ...Option) (*JSONMap, error) {
 
 func (b *builder) DoubleMap(opts ...Option) (*DoubleMap, error) {
 	if b.dialect != SQLite3 && b.dialect != MySQL {
-		return nil, DialectNotSupported
+		return nil, errors.Unsupported("sql dialect not supported", errors.Details{Key: "type", Value: "dialect"}, errors.Details{Key: "name", Value: b.dialect})
 	}
 
 	fields := []string{
@@ -134,7 +135,7 @@ func (b *builder) DoubleMap(opts ...Option) (*DoubleMap, error) {
 
 func (b *builder) JSONDoubleMap(opts ...Option) (*JSONDoubleMap, error) {
 	if b.dialect != SQLite3 && b.dialect != MySQL {
-		return nil, DialectNotSupported
+		return nil, errors.Unsupported("sql dialect not supported", errors.Details{Key: "type", Value: "dialect"}, errors.Details{Key: "name", Value: b.dialect})
 	}
 
 	fields := []string{
@@ -172,7 +173,7 @@ func (b *builder) JSONDoubleMap(opts ...Option) (*JSONDoubleMap, error) {
 
 func (b *builder) List(opts ...Option) (*List, error) {
 	if b.dialect != SQLite3 && b.dialect != MySQL {
-		return nil, DialectNotSupported
+		return nil, errors.Unsupported("sql dialect not supported", errors.Details{Key: "type", Value: "dialect"}, errors.Details{Key: "name", Value: b.dialect})
 	}
 
 	var fields []string
@@ -202,7 +203,7 @@ func (b *builder) List(opts ...Option) (*List, error) {
 
 func (b *builder) JSONList(opts ...Option) (*JSONList, error) {
 	if b.dialect != SQLite3 && b.dialect != MySQL {
-		return nil, DialectNotSupported
+		return nil, errors.Unsupported("sql dialect not supported", errors.Details{Key: "type", Value: "dialect"}, errors.Details{Key: "name", Value: b.dialect})
 	}
 
 	var fields []string
@@ -242,7 +243,7 @@ func (b *builder) JSONList(opts ...Option) (*JSONList, error) {
 
 func (b *builder) KeyValueList(opts ...Option) (*MappingList, error) {
 	if b.dialect != SQLite3 && b.dialect != MySQL {
-		return nil, DialectNotSupported
+		return nil, errors.Unsupported("sql dialect not supported", errors.Details{Key: "type", Value: "dialect"}, errors.Details{Key: "name", Value: b.dialect})
 	}
 
 	fields := []string{
@@ -265,7 +266,7 @@ func (b *builder) KeyValueList(opts ...Option) (*MappingList, error) {
 
 func (b *builder) KeyJSONValueList(opts ...Option) (*JSONMappingList, error) {
 	if b.dialect != SQLite3 && b.dialect != MySQL {
-		return nil, DialectNotSupported
+		return nil, errors.Unsupported("sql dialect not supported", errors.Details{Key: "type", Value: "dialect"}, errors.Details{Key: "name", Value: b.dialect})
 	}
 
 	fields := []string{

@@ -3,6 +3,7 @@ package bome
 import (
 	"database/sql"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/omecodes/errors"
 	. "github.com/smartystreets/goconvey/convey"
 	"os"
 	"testing"
@@ -105,7 +106,7 @@ func TestDict_Delete(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		_, err = dbMap.Get("k1")
-		So(IsNotFound(err), ShouldBeTrue)
+		So(errors.IsNotFound(err), ShouldBeTrue)
 	})
 }
 
