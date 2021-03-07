@@ -270,7 +270,7 @@ func (b *builder) JSONMappingList(opts ...Option) (*JSONMappingList, error) {
 	}
 
 	fields := []string{
-		"ind bigint not null $auto_increment$",
+		"ind bigint not null",
 		"name varchar(255) not null primary key",
 		"value json not null",
 	}

@@ -70,11 +70,7 @@ func (l *MappingList) Client() Client {
 }
 
 func (l *MappingList) Save(entry *PairListEntry) error {
-	if entry.Index == 0 {
-		return l.Client().Exec("insert into $table$ (name, value) values (?, ?);", entry.Key, entry.Value).Error
-	} else {
-		return l.Client().Exec("insert into $table$ values (?, ?, ?);", entry.Index, entry.Key, entry.Value).Error
-	}
+	return l.Client().Exec("insert into $table$ values (?, ?, ?);", entry.Index, entry.Key, entry.Value).Error
 }
 
 func (l *MappingList) Update(key string, value string) error {
@@ -87,10 +83,6 @@ func (l *MappingList) Upsert(entry *PairListEntry) error {
 		return err
 	}
 	return l.Update(entry.Key, entry.Value)
-}
-
-func (l *MappingList) Append(entry *MapEntry) error {
-	return l.Client().Exec("insert into $table$ (name, value) values (?, ?);", entry.Key, entry.Value).Error
 }
 
 func (l *MappingList) Get(key string) (*ListEntry, error) {
