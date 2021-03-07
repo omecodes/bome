@@ -344,9 +344,10 @@ func (b *builder) initTable(fields []string, opts ...Option) (*DB, error) {
 
 		if len(b.keys) > 0 {
 			for _, fk := range b.keys {
-				postInitExec = append(postInitExec, fk.AlterTableAddQuery())
+				fields = append(fields, fk.InTableDefQuery())
 			}
 		}
+
 		if len(b.indexes) > 0 {
 			for _, ind := range b.indexes {
 				postInitExec = append(postInitExec, ind.MySQLAddQuery())
