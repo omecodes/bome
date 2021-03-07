@@ -1,7 +1,6 @@
 package bome
 
 import (
-	"fmt"
 	"os"
 )
 
@@ -44,13 +43,11 @@ var (
 
 func init() {
 	testDBPath = os.Getenv("BOME_TESTS_DB")
-	fmt.Println("ENV.DBPATH = ", testDBPath)
 	if testDBPath == "" {
 		testDBPath = ":memory:"
 	}
 
 	testDialect = os.Getenv("BOME_TESTS_DIALECT")
-	fmt.Println("ENV.DIALECT = ", testDialect)
 	if testDialect == "" {
 		testDialect = SQLite3
 	}
