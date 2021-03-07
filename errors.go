@@ -6,6 +6,9 @@ import (
 )
 
 func isPrimaryKeyConstraintError(err error) bool {
+	if err == nil {
+		return false
+	}
 	if me, ok := err.(*mysql.MySQLError); ok {
 		return me.Number == 1062
 
@@ -16,6 +19,10 @@ func isPrimaryKeyConstraintError(err error) bool {
 }
 
 func isForeignKeyConstraintError(err error) bool {
+	if err == nil {
+		return false
+	}
+
 	if me, ok := err.(*mysql.MySQLError); ok {
 		return me.Number == 1216
 

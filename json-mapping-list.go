@@ -87,26 +87,26 @@ func (l *JSONMappingList) Client() Client {
 	return l.DB
 }
 
-func (l *JSONMappingList) EditAt(firstKey, secondKey string, path string, value string) error {
-	rawQuery := fmt.Sprintf("update $table$ set value=json_set(value, '%s', \"%s\") where first_key=? and second_key=?;",
+func (l *JSONMappingList) EditAt(key string, path string, value string) error {
+	rawQuery := fmt.Sprintf("update $table$ set value=json_set(value, '%s', \"%s\") where name=?;",
 		normalizedJsonPath(path),
 		value,
 	)
-	return l.Client().Exec(rawQuery, firstKey, secondKey).Error
+	return l.Client().Exec(rawQuery, key).Error
 }
 
-func (l *JSONMappingList) ExtractAt(firstKey, secondKey string, path string) (string, error) {
+func (l *JSONMappingList) ExtractAt(key string, path string) (string, error) {
 	var rawQuery string
 
 	if l.dialect == SQLite3 {
 		rawQuery = fmt.Sprintf(
-			"select json_extract(value, '%s') from $table$ where first_key=? and second_key=?;", path)
+			"select json_extract(value, '%s') from $table$ where name=?;", path)
 	} else {
 		rawQuery = fmt.Sprintf(
-			"select json_unquote(json_extract(value, '%s')) from $table$ where first_key=? and second_key=?;", path)
+			"select json_unquote(json_extract(value, '%s')) from $table$ where name=?;", path)
 	}
 
-	o, err := l.Client().QueryFirst(rawQuery, StringScanner, firstKey, secondKey)
+	o, err := l.Client().QueryFirst(rawQuery, StringScanner, key)
 	if err != nil {
 		return "", err
 	}

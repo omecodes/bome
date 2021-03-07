@@ -77,7 +77,7 @@ func (l *MappingList) Save(entry *PairListEntry) error {
 	}
 }
 
-func (l *MappingList) UpdateKey(key string, value string) error {
+func (l *MappingList) Update(key string, value string) error {
 	return l.Client().Exec("update $table$ set value=? where name=?;", value, key).Error
 }
 
@@ -86,23 +86,11 @@ func (l *MappingList) Upsert(entry *PairListEntry) error {
 	if !isPrimaryKeyConstraintError(err) {
 		return err
 	}
-	return l.UpdateKey(entry.Key, entry.Value)
+	return l.Update(entry.Key, entry.Value)
 }
 
-func (l *MappingList) Append(entry *PairListEntry) error {
-	return l.Client().Exec("insert into $table$ values (?, ?, ?);", entry.Index, entry.Key, entry.Value).Error
-}
-
-func (l *MappingList) AppendPair(entry *MapEntry) error {
+func (l *MappingList) Append(entry *MapEntry) error {
 	return l.Client().Exec("insert into $table$ (name, value) values (?, ?);", entry.Key, entry.Value).Error
-}
-
-func (l *MappingList) GetAt(index int64) (*MapEntry, error) {
-	o, err := l.Client().QueryFirst("select name, value from $table$ where ind=?;", MapEntryScanner, index)
-	if err != nil {
-		return nil, err
-	}
-	return o.(*MapEntry), nil
 }
 
 func (l *MappingList) Get(key string) (*ListEntry, error) {
