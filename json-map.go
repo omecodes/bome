@@ -148,6 +148,7 @@ func (m *JSONMap) RangeOf(condition BoolExpr, scannerName string, offset, count 
 }
 
 func (m *JSONMap) EditAt(key string, path string, ex Expression) error {
+	ex.setDialect(m.dialect)
 	rawQuery := fmt.Sprintf("update $table$ set value=json_set(value, '%s', %s) where name=?;",
 		normalizedJsonPath(path),
 		ex.eval())

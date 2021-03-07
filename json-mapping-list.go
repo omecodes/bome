@@ -87,10 +87,11 @@ func (l *JSONMappingList) Client() Client {
 	return l.DB
 }
 
-func (l *JSONMappingList) EditAt(key string, path string, value string) error {
+func (l *JSONMappingList) EditAt(key string, path string, ex Expression) error {
+	ex.setDialect(l.dialect)
 	rawQuery := fmt.Sprintf("update $table$ set value=json_set(value, '%s', \"%s\") where name=?;",
 		normalizedJsonPath(path),
-		value,
+		ex.eval(),
 	)
 	return l.Client().Exec(rawQuery, key).Error
 }
