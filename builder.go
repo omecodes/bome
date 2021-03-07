@@ -241,7 +241,7 @@ func (b *builder) JSONList(opts ...Option) (*JSONList, error) {
 	}, nil
 }
 
-func (b *builder) KeyValueList(opts ...Option) (*MappingList, error) {
+func (b *builder) MappingList(opts ...Option) (*MappingList, error) {
 	if b.dialect != SQLite3 && b.dialect != MySQL {
 		return nil, errors.Unsupported("sql dialect not supported", errors.Details{Key: "type", Value: "dialect"}, errors.Details{Key: "name", Value: b.dialect})
 	}
@@ -264,7 +264,7 @@ func (b *builder) KeyValueList(opts ...Option) (*MappingList, error) {
 	}, nil
 }
 
-func (b *builder) KeyJSONValueList(opts ...Option) (*JSONMappingList, error) {
+func (b *builder) JSONMappingList(opts ...Option) (*JSONMappingList, error) {
 	if b.dialect != SQLite3 && b.dialect != MySQL {
 		return nil, errors.Unsupported("sql dialect not supported", errors.Details{Key: "type", Value: "dialect"}, errors.Details{Key: "name", Value: b.dialect})
 	}
