@@ -74,12 +74,12 @@ func (s *DoubleMap) Contains(firstKey, secondKey string) (bool, error) {
 	return o.(bool), err
 }
 
-func (s *DoubleMap) Count() (int, error) {
+func (s *DoubleMap) Count() (int64, error) {
 	o, err := s.Client().QueryFirst("select count(*) from $table$;", IntScanner)
 	if err != nil {
 		return 0, err
 	}
-	return o.(int), nil
+	return o.(int64), nil
 }
 
 func (s *DoubleMap) CountForFirstKey(key string) (int, error) {

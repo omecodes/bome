@@ -88,12 +88,12 @@ func (m *JSONMap) Client() Client {
 	return m.DB
 }
 
-func (m *JSONMap) Count() (int, error) {
+func (m *JSONMap) Count() (int64, error) {
 	o, err := m.Client().QueryFirst("select count(*) from $table$;", IntScanner)
 	if err != nil {
 		return 0, err
 	}
-	return o.(int), nil
+	return o.(int64), nil
 }
 
 func (m *JSONMap) EditAll(path string, ex Expression) error {
