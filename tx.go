@@ -73,7 +73,7 @@ func (tx *TX) QueryFirst(query string, scannerName string, args ...interface{}) 
 	}()
 
 	if !cursor.HasNext() {
-		return nil, errors.NotFound("no result found")
+		return nil, errors.ErrNotFound
 	}
 	return cursor.Next()
 }

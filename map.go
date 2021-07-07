@@ -2,6 +2,7 @@ package bome
 
 import (
 	"context"
+	errs "errors"
 	"github.com/omecodes/errors"
 	"log"
 )
@@ -112,7 +113,7 @@ func (m *Map) TotalSize() (int64, error) {
 func (m *Map) Contains(key string) (bool, error) {
 	res, err := m.Client().QueryFirst("select 1 from $table$ where name=?;", BoolScanner, key)
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if errs.Is(err, errors.ErrNotFound) {
 			return false, nil
 		}
 		return false, err
