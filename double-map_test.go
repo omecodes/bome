@@ -2,7 +2,6 @@ package bome
 
 import (
 	"database/sql"
-	errs "errors"
 	"github.com/omecodes/errors"
 	"os"
 	"testing"
@@ -35,7 +34,7 @@ func init() {
 	_ = os.Remove(testDBPath)
 }
 
-func initDoubleDbMap(t *testing.T) {
+func initDoubleDbMap(_ *testing.T) {
 	if dbDoubleMap == nil {
 		var err error
 		db, err = sql.Open(testDialect, testDBPath)
@@ -190,7 +189,7 @@ func TestDoubleMap_Delete(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		value, err := dbDoubleMap.Get("fk1", "sk1")
-		So(errs.Is(err, errors.ErrNotFound), ShouldBeTrue)
+		So(errors.IsNotFound(err), ShouldBeTrue)
 		So(value, ShouldEqual, "")
 	})
 }
@@ -214,7 +213,7 @@ func TestDoubleMap_DeleteAllMatchingSecondKeyKey(t *testing.T) {
 		So(entries, ShouldHaveLength, 1)
 
 		entry, err := dbDoubleMap.Get("fk2", "sk2")
-		So(errs.Is(err, errors.ErrNotFound), ShouldBeTrue)
+		So(errors.IsNotFound(err), ShouldBeTrue)
 		So(entry, ShouldEqual, "")
 
 		cursor, err = dbDoubleMap.GetForSecond("sk2")

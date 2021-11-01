@@ -2,7 +2,6 @@ package bome
 
 import (
 	"database/sql"
-	errs "errors"
 	"fmt"
 	"github.com/omecodes/errors"
 	"net/url"
@@ -91,7 +90,7 @@ func Open(dsn string) (*DB, error) {
 		return dbome, nil
 
 	} else {
-		return nil, errors.ErrUnImplemented
+		return nil, errors.Unimplemented()
 	}
 }
 
@@ -153,7 +152,7 @@ func (db *DB) init() error {
 // Migrate executes registered migration scripts. And must be call before init
 func (db *DB) Migrate() error {
 	if !db.initDone {
-		return errors.ErrInternal
+		return errors.New()
 	}
 	for _, ms := range db.migrationScripts {
 		for name, value := range db.vars {
@@ -228,7 +227,7 @@ func (db *DB) BeginTx() (*TX, error) {
 // AddUniqueIndex adds a table index
 func (db *DB) AddUniqueIndex(index Index, forceUpdate bool) error {
 	if !db.initDone {
-		return errors.ErrInternal
+		return errors.New()
 	}
 
 	for varName, value := range db.vars {
@@ -275,7 +274,7 @@ func (db *DB) AddForeignKey(fk *ForeignKey) error {
 	if db.dialect == MySQL {
 		o, err := db.QueryFirst("SELECT 1 FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS WHERE CONSTRAINT_NAME=?", BoolScanner, fk.Name)
 		if err != nil {
-			if !errs.Is(err, errors.ErrNotFound) {
+			if !errors.IsNotFound(err) {
 				return err
 			}
 		}
@@ -300,7 +299,7 @@ func (db *DB) RegisterScanner(name string, scanner Scanner) *DB {
 // TableHasIndex tells if the given index exists
 func (db *DB) TableHasIndex(index Index) (bool, error) {
 	if !db.initDone {
-		return false, errors.ErrInternal
+		return false, errors.New()
 	}
 
 	var (
@@ -376,7 +375,7 @@ func (db *DB) QueryFirst(query string, scannerName string, params ...interface{}
 	}()
 
 	if !cursor.HasNext() {
-		return nil, errors.ErrNotFound
+		return nil, errors.NotFound()
 	}
 	return cursor.Next()
 }
@@ -411,7 +410,7 @@ func (db *DB) sqliteIndexScan(row Row) (interface{}, error) {
 	var ok bool
 	index.Name, ok = m["name"].(string)
 	if !ok {
-		return nil, errors.ErrNotFound
+		return nil, errors.NotFound()
 	}
 	return index, nil
 }
@@ -425,11 +424,11 @@ func (db *DB) mysqlIndexScan(row Row) (interface{}, error) {
 
 	index.Name = fmt.Sprintf("%s", m["Key_name"])
 	if index.Name == "" {
-		return nil, errors.ErrNotFound
+		return nil, errors.NotFound()
 	}
 	index.Table = fmt.Sprintf("%s", m["Table"])
 	if index.Table == "" {
-		return nil, errors.ErrNotFound
+		return nil, errors.NotFound()
 	}
 	return index, nil
 }
@@ -460,19 +459,19 @@ func (db *DB) rowToMap(rows *sql.Rows) (map[string]interface{}, error) {
 
 func (db *DB) findCompileStatement(name string) (*sql.Stmt, error) {
 	if db.compiledStatements == nil {
-		return nil, errors.ErrNotFound
+		return nil, errors.NotFound()
 	}
 
 	if compiledStmt, found := db.compiledStatements[name]; found {
 		return compiledStmt, nil
 	}
-	return nil, errors.ErrNotFound
+	return nil, errors.NotFound()
 }
 
 func (db *DB) findScanner(name string) (Scanner, error) {
 	scanner, found := db.scanners[name]
 	if !found {
-		return nil, errors.ErrNotFound
+		return nil, errors.NotFound()
 	}
 	return scanner, nil
 }
