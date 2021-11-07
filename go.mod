@@ -6,7 +6,7 @@ require (
 	github.com/go-sql-driver/mysql v1.5.0
 	github.com/google/uuid v1.2.0
 	github.com/mattn/go-sqlite3 v2.0.3+incompatible
-	github.com/omecodes/errors v0.0.0-20211101220640-634fc80526c2 // indirect
+	github.com/omecodes/errors v0.0.0-20211107130133-c08622152c89 // indirect
 	github.com/smartystreets/goconvey v1.6.4
 	github.com/xwb1989/sqlparser v0.0.0-20180606152119-120387863bf2
 )
