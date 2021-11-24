@@ -2,7 +2,9 @@ package bome
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"reflect"
 )
 
 type JSONMappingList struct {
@@ -85,6 +87,17 @@ func (l *JSONMappingList) Client() Client {
 		return l.tx
 	}
 	return l.DB
+}
+
+func (l *JSONMappingList) Read(key string, o interface{}) error {
+	if o == nil {
+		o = reflect.New(reflect.TypeOf(o))
+	}
+	entry, err := l.Get(key)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal([]byte(entry.Value), o)
 }
 
 func (l *JSONMappingList) EditAt(key string, path string, ex Expression) error {

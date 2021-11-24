@@ -2,7 +2,9 @@ package bome
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"reflect"
 )
 
 type JSONDoubleMap struct {
@@ -94,6 +96,17 @@ func (s *JSONDoubleMap) EditAt(firstKey, secondKey string, path string, value st
 		value,
 	)
 	return s.Client().Exec(rawQuery, firstKey, secondKey).Error
+}
+
+func (s *JSONDoubleMap) Read(firstKey, secondKey string, o interface{}) error {
+	if o == nil {
+		o = reflect.New(reflect.TypeOf(o))
+	}
+	value, err := s.Get(firstKey, secondKey)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal([]byte(value), o)
 }
 
 func (s *JSONDoubleMap) ExtractAt(firstKey, secondKey string, path string) (string, error) {

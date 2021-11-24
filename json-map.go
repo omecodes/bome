@@ -2,7 +2,9 @@ package bome
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"reflect"
 )
 
 type JSONMap struct {
@@ -94,6 +96,17 @@ func (m *JSONMap) Count() (int64, error) {
 		return 0, err
 	}
 	return o.(int64), nil
+}
+
+func (m *JSONMap) Read(key string, o interface{}) error {
+	if o == nil {
+		o = reflect.New(reflect.TypeOf(o))
+	}
+	value, err := m.Get(key)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal([]byte(value), o)
 }
 
 func (m *JSONMap) EditAll(path string, ex Expression) error {

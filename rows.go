@@ -1,11 +1,22 @@
 package bome
 
-import "database/sql"
+import (
+	"database/sql"
+	"encoding/json"
+	"reflect"
+)
 
 // Cursor is a convenience for generic objects cursor
 type Cursor interface {
 	HasNext() bool
 	Next() (interface{}, error)
+	Close() error
+}
+
+// ObjectCursor is a convenience for generic objects cursor
+type ObjectCursor interface {
+	HasNext() bool
+	Read(o interface{}) error
 	Close() error
 }
 
@@ -40,5 +51,32 @@ func (c *cursor) Next() (interface{}, error) {
 }
 
 func (c *cursor) Close() error {
+	return c.rows.Close()
+}
+
+type objectCursor struct {
+	scanner Scanner
+	rows    *sql.Rows
+}
+
+func (c *objectCursor) HasNext() bool {
+	return c.rows.Next()
+}
+
+func (c *objectCursor) Read(o interface{}) error {
+	var value string
+	err := c.rows.Scan(&value)
+	if err != nil {
+		return err
+	}
+
+	if o == nil {
+		o = reflect.New(reflect.TypeOf(o))
+	}
+
+	return json.Unmarshal([]byte(value), o)
+}
+
+func (c *objectCursor) Close() error {
 	return c.rows.Close()
 }
