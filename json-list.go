@@ -2,7 +2,9 @@ package bome
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"reflect"
 )
 
 type JSONList struct {
@@ -86,6 +88,28 @@ func (l *JSONList) Client() Client {
 		return l.tx
 	}
 	return l.DB
+}
+
+func (l *JSONList) Write(index int64, object interface{}) error {
+	data, err := json.Marshal(object)
+	if err != nil {
+		return err
+	}
+	return l.Save(&ListEntry{
+		Index: index,
+		Value: string(data),
+	})
+}
+
+func (l *JSONList) Read(index int64, o interface{}) error {
+	if o == nil {
+		o = reflect.New(reflect.TypeOf(o))
+	}
+	entry, err := l.GetAt(index)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal([]byte(entry.Value), o)
 }
 
 func (l *JSONList) EditAt(index int64, path string, sqlValue string) error {

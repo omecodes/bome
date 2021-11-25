@@ -98,6 +98,18 @@ func (m *JSONMap) Count() (int64, error) {
 	return o.(int64), nil
 }
 
+func (m *JSONMap) Write(key string, o interface{}) error {
+	data, err := json.Marshal(o)
+	if err != nil {
+		return err
+	}
+
+	return m.Save(&MapEntry{
+		Key:   key,
+		Value: string(data),
+	})
+}
+
 func (m *JSONMap) Read(key string, o interface{}) error {
 	if o == nil {
 		o = reflect.New(reflect.TypeOf(o))

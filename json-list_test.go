@@ -16,7 +16,7 @@ func init() {
 	_ = os.Remove(testDBPath)
 }
 
-func initJsonList(t *testing.T) {
+func initJsonList(_ *testing.T) {
 	if dbJsonList == nil {
 		var err error
 
@@ -64,6 +64,18 @@ func TestJsonListDB_EditAt(t *testing.T) {
 		initJsonList(t)
 		err := dbJsonList.EditAt(3, "$.address.commune", "'Yahou'")
 		So(err, ShouldBeNil)
+	})
+}
+
+func TestJsonListDB_Read(t *testing.T) {
+	Convey("Read", t, func() {
+		var o = struct {
+			Age  int
+			Name string
+		}{}
+		err := dbJsonList.Read(3, &o)
+		So(err, ShouldBeNil)
+		So(o.Name, ShouldEqual, "akam")
 	})
 }
 

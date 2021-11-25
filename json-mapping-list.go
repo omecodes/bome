@@ -89,6 +89,19 @@ func (l *JSONMappingList) Client() Client {
 	return l.DB
 }
 
+func (l *JSONMappingList) Write(index int64, key string, o interface{}) error {
+	data, err := json.Marshal(o)
+	if err != nil {
+		return err
+	}
+
+	return l.Save(&PairListEntry{
+		Index: index,
+		Key:   key,
+		Value: string(data),
+	})
+}
+
 func (l *JSONMappingList) Read(key string, o interface{}) error {
 	if o == nil {
 		o = reflect.New(reflect.TypeOf(o))

@@ -72,6 +72,21 @@ func TestJsonDoubleMap_Save(t *testing.T) {
 	})
 }
 
+func TestJsonDoubleMap_Read(t *testing.T) {
+	Convey("Read double map entries", t, func() {
+		initJsonDoubleDbMap()
+		var err error
+		err = dbJsonDoubleMap.Save(&person1)
+		So(err, ShouldBeNil)
+
+		err = dbJsonDoubleMap.Save(&person2)
+		So(err, ShouldBeNil)
+
+		err = dbJsonDoubleMap.Save(&person3)
+		So(err, ShouldBeNil)
+	})
+}
+
 func TestJsonDoubleMap_EditAt(t *testing.T) {
 	Convey("Edit item", t, func() {
 		initJsonDoubleDbMap()

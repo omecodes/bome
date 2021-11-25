@@ -90,6 +90,18 @@ func (s *JSONDoubleMap) Client() Client {
 	return s.DB
 }
 
+func (s *JSONDoubleMap) Write(firstKey, secondKey string, object interface{}) error {
+	data, err := json.Marshal(object)
+	if err != nil {
+		return err
+	}
+	return s.Save(&DoubleMapEntry{
+		FirstKey:  firstKey,
+		SecondKey: secondKey,
+		Value:     string(data),
+	})
+}
+
 func (s *JSONDoubleMap) EditAt(firstKey, secondKey string, path string, value string) error {
 	rawQuery := fmt.Sprintf("update $table$ set value=json_set(value, '%s', \"%s\") where first_key=? and second_key=?;",
 		normalizedJsonPath(path),

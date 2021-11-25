@@ -72,6 +72,18 @@ func TestJsonMap_Save(t *testing.T) {
 	})
 }
 
+func TestJsonMap_Read(t *testing.T) {
+	Convey("Read item", t, func() {
+		var o = struct {
+			Name string
+			Age  int
+		}{}
+		err := dbJsonMap.Read("akam", &o)
+		So(err, ShouldBeNil)
+		So(o.Name, ShouldEqual, "akam")
+	})
+}
+
 func TestJsonMap_EditAt(t *testing.T) {
 	Convey("Edit item", t, func() {
 		err := dbJsonMap.EditAt("akam", "$.address.commune", StringExpr("yahou"))
