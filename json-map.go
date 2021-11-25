@@ -158,13 +158,6 @@ func (m *JSONMap) ExtractAll(path string, condition BoolExpr, scannerName string
 	return m.Client().Query(rawQuery, scannerName)
 }
 
-func (m *JSONMap) Search(condition BoolExpr, scannerName string) (Cursor, error) {
-	rawQuery := fmt.Sprintf("select * from $table$ where %s;",
-		condition.sql(),
-	)
-	return m.Client().Query(rawQuery, scannerName)
-}
-
 func (m *JSONMap) RangeOf(condition BoolExpr, scannerName string, offset, count int) (Cursor, error) {
 	rawQuery := fmt.Sprintf("select * from $table$ where %s limit ?, ?;",
 		condition.sql(),
