@@ -337,7 +337,7 @@ func (db *DB) TableHasIndex(index Index) (bool, error) {
 }
 
 // Query executes a raw query.
-// scannerName: is one the registered scanner name
+// scannerName: is one of the registered scanner name
 func (db *DB) Query(query string, scannerName string, params ...interface{}) (Cursor, error) {
 	for name, value := range db.vars {
 		query = strings.Replace(query, name, value, -1)
@@ -353,8 +353,25 @@ func (db *DB) Query(query string, scannerName string, params ...interface{}) (Cu
 	return newCursor(rows, scanner), nil
 }
 
+// QueryObjects executes a raw query.
+// scannerName: is one of the registered scanner name
+func (db *DB) QueryObjects(query string, params ...interface{}) (ObjectCursor, error) {
+	for name, value := range db.vars {
+		query = strings.Replace(query, name, value, -1)
+	}
+	rows, err := db.sqlDb.Query(query, params...)
+	if err != nil {
+		return nil, err
+	}
+	scanner, err := db.findScanner(StringScanner)
+	if err != nil {
+		return nil, err
+	}
+	return &objectCursor{rows: rows, scanner: scanner}, nil
+}
+
 // QueryFirst gets the first result of the query result.
-// scannerName: is one the registered scanner name
+// scannerName: is one of the registered scanner name
 func (db *DB) QueryFirst(query string, scannerName string, params ...interface{}) (interface{}, error) {
 	for name, value := range db.vars {
 		query = strings.Replace(query, name, value, -1)

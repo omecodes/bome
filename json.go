@@ -140,6 +140,15 @@ func (s *JsonValueHolder) Search(condition BoolExpr, scannerName string) (Cursor
 	return s.Client().Query(rawQuery, scannerName)
 }
 
+func (s *JsonValueHolder) SearchObjects(condition BoolExpr, scannerName string) (ObjectCursor, error) {
+	condition.setDialect(s.dialect)
+	rawQuery := fmt.Sprintf("select %s from $table$ where %s;",
+		s.field,
+		condition.sql(),
+	)
+	return s.Client().QueryObjects(rawQuery, scannerName)
+}
+
 func (s *JsonValueHolder) RangeOf(condition BoolExpr, scannerName string, offset, count int) (Cursor, error) {
 	condition.setDialect(s.dialect)
 	rawQuery := fmt.Sprintf("select * from $table$ where %s limit ?, ?;",
