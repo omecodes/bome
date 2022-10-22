@@ -1,28 +1,28 @@
 package bome
 
 const (
-	//IntScanner is the key for integer scanner
+	// IntScanner is the key for integer scanner.
 	IntScanner = "scanInt"
 
-	//FloatScanner is the key for float scanner
+	// FloatScanner is the key for float scanner.
 	FloatScanner = "scanFloat"
 
-	//BoolScanner is the key for boolean scanner
+	// BoolScanner is the key for boolean scanner.
 	BoolScanner = "scanBool"
 
-	//StringScanner is the key for string scanner
+	// StringScanner is the key for string scanner.
 	StringScanner = "scanString"
 
-	//ListEntryScanner is the key for  list entry scanner
+	// ListEntryScanner is the key for  list entry scanner.
 	ListEntryScanner = "scanListEntry"
 
-	//MapEntryScanner is the key for map entry scanner
+	// MapEntryScanner is the key for map entry scanner.
 	MapEntryScanner = "scanMapEntry"
 
-	//DoubleMapEntryScanner is the key for double map scanner
+	// DoubleMapEntryScanner is the key for double map scanner.
 	DoubleMapEntryScanner = "scanDoubleMapEntry"
 
-	//PairListEntryScanner is the key for pairs list scanner
+	// PairListEntryScanner is the key for pairs list scanner.
 	PairListEntryScanner = "scanPairListEntry"
 )
 

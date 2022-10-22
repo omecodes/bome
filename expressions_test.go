@@ -2,13 +2,14 @@ package bome
 
 import (
 	"fmt"
+	"testing"
+
 	_ "github.com/mattn/go-sqlite3"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/xwb1989/sqlparser"
-	"testing"
 )
 
-func testExpression(t *testing.T, ex string) {
+func testExpression(_ *testing.T, ex string) {
 	rawEx := RawExpr(fmt.Sprintf("select * from t where %s", ex))
 	_, err := sqlparser.Parse(rawEx.eval())
 	So(err, ShouldBeNil)

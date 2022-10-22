@@ -3,53 +3,53 @@ package bome
 import (
 	"database/sql"
 	"fmt"
-	"github.com/omecodes/errors"
 	"net/url"
 	"strings"
 	"sync"
+
+	"github.com/omecodes/errors"
 )
 
 const (
 	mysqlIndexScanner  = "mysql_index_scanner"
 	sqliteIndexScanner = "sqlite_index_scanner"
 
-	// VarPrefix is used to set table name prefix dynamically
+	// VarPrefix is used to set table name prefix dynamically.
 	VarPrefix = "$prefix$"
 
 	VarTable = "$table$"
 
-	// VarEngine is used to define prefix. DB replaces it with the dialect engine value
+	// VarEngine is used to define prefix. DB replaces it with the dialect engine value.
 	VarEngine = "$engine$"
 
-	// VarAutoIncrement is used set auto_increment to int field. DB replaces it with the dialect proper value
+	// VarAutoIncrement is used set auto_increment to int field. DB replaces it with the dialect proper value.
 	VarAutoIncrement = "$auto_increment$"
 
-	// VarLocate is the equivalent of string replace
+	// VarLocate is the equivalent of string replace.
 	VarLocate = "$locate$"
 )
 
-// Result is returned when executing a write operation
+// Result is returned when executing a write operation.
 type Result struct {
 	Error        error
 	LastInserted int64
 	AffectedRows int64
 }
 
-// DB is an SQL database wrapper
+// DB is an SQL database wrapper.
 type DB struct {
-	sqlDb              *sql.DB
-	mux                *sync.RWMutex
-	dialect            string
-	isSQLite           bool
-	compiledStatements map[string]*sql.Stmt
-	vars               map[string]string
-	tableDefs          []string
-	migrationScripts   []string
-	scanners           map[string]Scanner
-	initDone           bool
+	sqlDb            *sql.DB
+	mux              *sync.RWMutex
+	dialect          string
+	isSQLite         bool
+	vars             map[string]string
+	tableDefs        []string
+	migrationScripts []string
+	scanners         map[string]Scanner
+	initDone         bool
 }
 
-// Open detects and creates an instance of DB DB according to the dialect
+// Open detects and creates an instance of DB DB according to the dialect.
 func Open(dsn string) (*DB, error) {
 	u, err := url.Parse(dsn)
 	if err != nil {
@@ -94,7 +94,7 @@ func Open(dsn string) (*DB, error) {
 	}
 }
 
-// New creates a MySQL wrapper
+// New creates a MySQL wrapper.
 func New(dbConn *sql.DB) (*DB, error) {
 	db := new(DB)
 	db.sqlDb = dbConn
@@ -105,7 +105,7 @@ func New(dbConn *sql.DB) (*DB, error) {
 	return db, nil
 }
 
-// NewLite creates an SQLite wrapper
+// NewLite creates an SQLite wrapper.
 func NewLite(dbConn *sql.DB) (*DB, error) {
 	db := new(DB)
 	db.sqlDb = dbConn
@@ -121,7 +121,7 @@ func NewLite(dbConn *sql.DB) (*DB, error) {
 	return db, nil
 }
 
-// Init must be call after custom variable and statements are set. And before any request is executed
+// Init must be call after custom variable and statements are set. And before any request is executed.
 func (db *DB) Init() error {
 	return db.init()
 }
@@ -149,7 +149,7 @@ func (db *DB) init() error {
 	return nil
 }
 
-// Migrate executes registered migration scripts. And must be call before init
+// Migrate executes registered migration scripts. And must be call before init.
 func (db *DB) Migrate() error {
 	if !db.initDone {
 		return errors.New()
@@ -167,12 +167,12 @@ func (db *DB) Migrate() error {
 	return nil
 }
 
-// IsSQLite return true if wrapped database is SQLite
+// IsSQLite return true if wrapped database is SQLite.
 func (db *DB) IsSQLite() bool {
 	return db.isSQLite
 }
 
-// SetVariable is used to defines a variable
+// SetVariable is used to defines a variable.
 func (db *DB) SetVariable(name string, value string) *DB {
 	if db.vars == nil {
 		db.vars = map[string]string{}
@@ -181,7 +181,7 @@ func (db *DB) SetVariable(name string, value string) *DB {
 	return db
 }
 
-// SetTablePrefix is used to defines all table name prefix
+// SetTablePrefix is used to defines all table name prefix.
 func (db *DB) SetTablePrefix(prefix string) *DB {
 	if db.vars == nil {
 		db.vars = map[string]string{}
@@ -190,7 +190,7 @@ func (db *DB) SetTablePrefix(prefix string) *DB {
 	return db
 }
 
-// SetTableName registers variable $table$ value
+// SetTableName registers variable $table$ value.
 func (db *DB) SetTableName(tableName string) *DB {
 	if db.vars == nil {
 		db.vars = map[string]string{}
@@ -199,19 +199,19 @@ func (db *DB) SetTableName(tableName string) *DB {
 	return db
 }
 
-//AddMigrationScript adds an migration script.
+// AddMigrationScript adds an migration script.
 func (db *DB) AddMigrationScript(s string) *DB {
 	db.migrationScripts = append(db.migrationScripts, s)
 	return db
 }
 
-// AddTableDefinition adds a table definition. Query can contains predefined or custom defined variables
+// AddTableDefinition adds a table definition. Query can contains predefined or custom defined variables.
 func (db *DB) AddTableDefinition(schema string) *DB {
 	db.tableDefs = append(db.tableDefs, schema)
 	return db
 }
 
-// BeginTx begins a transaction
+// BeginTx begins a transaction.
 func (db *DB) BeginTx() (*TX, error) {
 	tx, err := db.sqlDb.Begin()
 	if err != nil {
@@ -224,7 +224,7 @@ func (db *DB) BeginTx() (*TX, error) {
 	return tr, nil
 }
 
-// AddUniqueIndex adds a table index
+// AddUniqueIndex adds a table index.
 func (db *DB) AddUniqueIndex(index Index, forceUpdate bool) error {
 	if !db.initDone {
 		return errors.New()
@@ -269,7 +269,7 @@ func (db *DB) AddUniqueIndex(index Index, forceUpdate bool) error {
 	return nil
 }
 
-// AddForeignKey creates a foreign key
+// AddForeignKey creates a foreign key.
 func (db *DB) AddForeignKey(fk *ForeignKey) error {
 	if db.dialect == MySQL {
 		o, err := db.QueryFirst("SELECT 1 FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS WHERE CONSTRAINT_NAME=?", BoolScanner, fk.Name)
@@ -287,7 +287,7 @@ func (db *DB) AddForeignKey(fk *ForeignKey) error {
 	return nil
 }
 
-// RegisterScanner registers a scanner with a name which is used when querying data
+// RegisterScanner registers a scanner with a name which is used when querying data.
 func (db *DB) RegisterScanner(name string, scanner Scanner) *DB {
 	if db.scanners == nil {
 		db.scanners = map[string]Scanner{}
@@ -296,7 +296,7 @@ func (db *DB) RegisterScanner(name string, scanner Scanner) *DB {
 	return db
 }
 
-// TableHasIndex tells if the given index exists
+// TableHasIndex tells if the given index exists.
 func (db *DB) TableHasIndex(index Index) (bool, error) {
 	if !db.initDone {
 		return false, errors.New()
@@ -314,16 +314,16 @@ func (db *DB) TableHasIndex(index Index) (bool, error) {
 		scannerName = sqliteIndexScanner
 	}
 
-	cursor, err := db.Query(rawQuery, scannerName)
+	c, err := db.Query(rawQuery, scannerName)
 	if err != nil {
 		return false, err
 	}
 	defer func() {
-		_ = cursor.Close()
+		_ = c.Close()
 	}()
 
-	for cursor.HasNext() {
-		ind, err := cursor.Next()
+	for c.HasNext() {
+		ind, err := c.Entry()
 		if err != nil {
 			return false, err
 		}
@@ -337,7 +337,7 @@ func (db *DB) TableHasIndex(index Index) (bool, error) {
 }
 
 // Query executes a raw query.
-// scannerName: is one of the registered scanner name
+// scannerName: is one of the registered scanner name.
 func (db *DB) Query(query string, scannerName string, params ...interface{}) (Cursor, error) {
 	for name, value := range db.vars {
 		query = strings.Replace(query, name, value, -1)
@@ -354,8 +354,8 @@ func (db *DB) Query(query string, scannerName string, params ...interface{}) (Cu
 }
 
 // QueryObjects executes a raw query.
-// scannerName: is one of the registered scanner name
-func (db *DB) QueryObjects(query string, params ...interface{}) (ObjectCursor, error) {
+// scannerName: is one of the registered scanner name.
+func (db *DB) QueryObjects(query string, params ...interface{}) (Cursor, error) {
 	for name, value := range db.vars {
 		query = strings.Replace(query, name, value, -1)
 	}
@@ -367,11 +367,11 @@ func (db *DB) QueryObjects(query string, params ...interface{}) (ObjectCursor, e
 	if err != nil {
 		return nil, err
 	}
-	return &objectCursor{rows: rows, scanner: scanner}, nil
+	return &cursor{rows: rows, scanner: scanner}, nil
 }
 
 // QueryFirst gets the first result of the query result.
-// scannerName: is one of the registered scanner name
+// scannerName: is one of the registered scanner name.
 func (db *DB) QueryFirst(query string, scannerName string, params ...interface{}) (interface{}, error) {
 	for name, value := range db.vars {
 		query = strings.Replace(query, name, value, -1)
@@ -386,18 +386,18 @@ func (db *DB) QueryFirst(query string, scannerName string, params ...interface{}
 		return nil, err
 	}
 
-	cursor := newCursor(rows, scanner)
+	c := newCursor(rows, scanner)
 	defer func() {
-		_ = cursor.Close()
+		_ = c.Close()
 	}()
 
-	if !cursor.HasNext() {
+	if !c.HasNext() {
 		return nil, errors.NotFound()
 	}
-	return cursor.Next()
+	return c.Entry()
 }
 
-// Exec executes the given raw query
+// Exec executes the given raw query.
 func (db *DB) Exec(rawQuery string, params ...interface{}) Result {
 	db.wLock()
 	defer db.wUnlock()
@@ -471,18 +471,6 @@ func (db *DB) rowToMap(rows *sql.Rows) (map[string]interface{}, error) {
 		m[colName] = *val
 	}
 	return m, nil
-
-}
-
-func (db *DB) findCompileStatement(name string) (*sql.Stmt, error) {
-	if db.compiledStatements == nil {
-		return nil, errors.NotFound()
-	}
-
-	if compiledStmt, found := db.compiledStatements[name]; found {
-		return compiledStmt, nil
-	}
-	return nil, errors.NotFound()
 }
 
 func (db *DB) findScanner(name string) (Scanner, error) {
@@ -491,17 +479,6 @@ func (db *DB) findScanner(name string) (Scanner, error) {
 		return nil, errors.NotFound()
 	}
 	return scanner, nil
-}
-
-func (db *DB) getStatement(name string) *sql.Stmt {
-	if db.compiledStatements == nil {
-		return nil
-	}
-	s, found := db.compiledStatements[name]
-	if !found {
-		return nil
-	}
-	return s
 }
 
 func (db *DB) rLock() {
@@ -536,7 +513,7 @@ func (sf *scannerFunc) ScanRow(row Row) (interface{}, error) {
 	return sf.f(row)
 }
 
-// NewScannerFunc creates a new scanner from function
+// NewScannerFunc creates a new scanner from function.
 func NewScannerFunc(f func(row Row) (interface{}, error)) Scanner {
 	return &scannerFunc{
 		f: f,

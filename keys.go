@@ -45,7 +45,7 @@ func (fk *ForeignKey) InTableDefQuery() string {
 	return addForeignKeySQL
 }
 
-// Index is the equivalent of SQL index
+// Index is the equivalent of SQL index.
 type Index struct {
 	Name   string
 	Table  string

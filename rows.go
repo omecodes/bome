@@ -4,28 +4,25 @@ import (
 	"database/sql"
 	"encoding/json"
 	"reflect"
+
+	"github.com/omecodes/errors"
 )
 
-// Cursor is a convenience for generic objects cursor
+// Cursor is a convenience for generic objects cursor.
 type Cursor interface {
 	HasNext() bool
-	Next() (interface{}, error)
-	Close() error
-}
-
-// ObjectCursor is a convenience for generic objects cursor
-type ObjectCursor interface {
-	HasNext() bool
+	Entry() (interface{}, error)
+	Value() (string, error)
 	Read(o interface{}) error
 	Close() error
 }
 
-// Row is a convenience for generic row
+// Row is a convenience for generic row.
 type Row interface {
 	Scan(dest ...interface{}) error
 }
 
-// Scanner is a convenience for generic row scanner
+// Scanner is a convenience for generic row scanner.
 type Scanner interface {
 	ScanRow(row Row) (interface{}, error)
 }
@@ -46,30 +43,36 @@ func (c *cursor) HasNext() bool {
 	return c.rows.Next()
 }
 
-func (c *cursor) Next() (interface{}, error) {
+func (c *cursor) Entry() (interface{}, error) {
 	return c.scanner.ScanRow(c.rows)
 }
 
-func (c *cursor) Close() error {
-	return c.rows.Close()
+func (c *cursor) Value() (string, error) {
+	o, err := c.scanner.ScanRow(c.rows)
+	if err != nil {
+		return "", err
+	}
+	switch v := o.(type) {
+	case string:
+		return v, nil
+	case *ListEntry:
+		return v.Value, nil
+	case *MapEntry:
+		return v.Value, nil
+	case *DoubleMapEntry:
+		return v.Value, nil
+	case *PairListEntry:
+		return v.Value, nil
+	}
+
+	return "", errors.NotSupported()
 }
 
-type objectCursor struct {
-	scanner Scanner
-	rows    *sql.Rows
-}
-
-func (c *objectCursor) HasNext() bool {
-	return c.rows.Next()
-}
-
-func (c *objectCursor) Read(o interface{}) error {
-	var value string
-	err := c.rows.Scan(&value)
+func (c *cursor) Read(o interface{}) error {
+	value, err := c.Value()
 	if err != nil {
 		return err
 	}
-
 	if o == nil {
 		o = reflect.New(reflect.TypeOf(o))
 	}
@@ -77,6 +80,6 @@ func (c *objectCursor) Read(o interface{}) error {
 	return json.Unmarshal([]byte(value), o)
 }
 
-func (c *objectCursor) Close() error {
+func (c *cursor) Close() error {
 	return c.rows.Close()
 }

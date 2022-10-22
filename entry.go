@@ -1,25 +1,25 @@
 package bome
 
-// ListEntry is the list entry definition
+// ListEntry is the list entry definition.
 type ListEntry struct {
 	Index int64
 	Value string
 }
 
-// MapEntry is the map entry definition
+// MapEntry is the map entry definition.
 type MapEntry struct {
 	Key   string
 	Value string
 }
 
-// DoubleMapEntry is the double map entry definition
+// DoubleMapEntry is the double map entry definition.
 type DoubleMapEntry struct {
 	FirstKey  string
 	SecondKey string
 	Value     string
 }
 
-// PairListEntry is the pairs list entry definition
+// PairListEntry is the pairs list entry definition.
 type PairListEntry struct {
 	Index int64
 	Key   string

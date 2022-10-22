@@ -43,9 +43,7 @@ type startsWith struct {
 func (s *startsWith) sql() string {
 	s.e.setDialect(s.dialect)
 	expr := s.e.eval()
-	if strings.HasSuffix(expr, "'") {
-		expr = expr[:len(expr)-1]
-	}
+	expr = strings.TrimSuffix(expr, "'")
 	expr = expr + "%'"
 	return "(value like " + expr + ")"
 }

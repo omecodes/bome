@@ -36,9 +36,7 @@ func ContextWithCommitActions(parent context.Context, actions ...ActionFunc) con
 		ta = o.(*transactionActions)
 	}
 
-	for _, action := range actions {
-		ta.Commits = append(ta.Commits, action)
-	}
+	ta.Commits = append(ta.Commits, actions...)
 
 	if o == nil {
 		return context.WithValue(parent, ctxTransactionActions{}, ta)
@@ -55,9 +53,7 @@ func ContextWithRollbackActions(parent context.Context, actions ...ActionFunc) c
 		ta = o.(*transactionActions)
 	}
 
-	for _, action := range actions {
-		ta.Rollbacks = append(ta.Rollbacks, action)
-	}
+	ta.Rollbacks = append(ta.Rollbacks, actions...)
 
 	if o == nil {
 		return context.WithValue(parent, ctxTransactionActions{}, ta)

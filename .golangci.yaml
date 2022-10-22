@@ -1,0 +1,78 @@
+run:
+  timeout: "10m"
+output:
+  sort-results: true
+linters:
+  disable-all: true
+  enable:
+    - "asciicheck"
+    - "bodyclose"
+    - "deadcode"
+    #- "depguard"
+    #- "errcheck"
+    #- "errorlint"
+    - "exportloopref"
+    #- "gocritic"
+    #- "gocyclo"
+    - "godot"
+    #- "goerr113"
+    - "gofmt"
+    - "gofumpt"
+    - "goimports"
+    - "gosimple"
+    - "govet"
+    - "ineffassign"
+    - "makezero"
+    - "misspell"
+    #- "nakedret"
+    #- "nestif"
+    - "nilerr"
+    - "nolintlint"
+    - "predeclared"
+    #- "revive"
+    - "staticcheck"
+    - "structcheck"
+    #- "stylecheck"
+    - "unconvert"
+    - "unparam"
+    - "unused"
+    - "varcheck"
+linters-settings:
+  depguard:
+    list-type: blacklist
+    include-go-root: true
+    packages-with-error-message:
+      - reflect: "shouldn't be used by most application"
+      - unsafe: "it's not safe"
+  errcheck:
+    check-type-assertions: true
+    check-blank: true
+  gocritic:
+    enabled-tags:
+      - experimental
+      - diagnostic
+      - opinionated
+      - performance
+      - style
+    #disabled-checks:
+  gocyclo:
+    min-complexity: 10
+  govet:
+    enable-all: true
+    disable:
+      - fieldalignment
+  nolintlint:
+    allow-unused: false
+    allow-leading-space: false
+    allow-no-explanation:
+      - errcheck
+      - misspell
+    require-explanation: true
+    require-specific: true
+  stylecheck:
+    go: "1.17"
+    checks: [ "all" ]
+issues:
+  exclude-use-default: false
+  max-issues-per-linter: 0
+  max-same-issues: 0

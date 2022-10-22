@@ -1,5 +1,9 @@
 package bome
 
+type SaveOptions struct {
+	UpdateExisting bool
+}
+
 type options struct {
 	foreignKeys []*ForeignKey
 	indexes     []*Index

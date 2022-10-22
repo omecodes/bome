@@ -76,7 +76,7 @@ func (s *JsonValueHolder) Size(condition BoolExpr) (int64, error) {
 func (s *JsonValueHolder) TotalSize() (int64, error) {
 	count, err := s.Count()
 	if err != nil {
-		return 0, nil
+		return 0, err
 	}
 
 	if count == 0 {
@@ -90,7 +90,7 @@ func (s *JsonValueHolder) TotalSize() (int64, error) {
 	return o.(int64), nil
 }
 
-func (s *JsonValueHolder) EditAll(path string, ex Expression) error {
+func (s *JsonValueHolder) EditAllAt(path string, ex Expression) error {
 	ex.setDialect(s.dialect)
 	rawQuery := fmt.Sprintf(
 		"update $table$ set value=json_set(%s, '%s', %s);",
@@ -101,52 +101,89 @@ func (s *JsonValueHolder) EditAll(path string, ex Expression) error {
 	return s.Client().Exec(rawQuery).Error
 }
 
-func (s *JsonValueHolder) EditAllMatching(path string, ex Expression, condition BoolExpr) error {
-	condition.setDialect(s.dialect)
+func (s *JsonValueHolder) EditAt(path string, ex Expression, where BoolExpr) error {
+	where.setDialect(s.dialect)
 	rawQuery := fmt.Sprintf(
 		"update $table$ set value=json_set(%s, '%s', %s) where %s",
 		s.field,
 		normalizedJsonPath(path),
 		ex.eval(),
-		condition.sql(),
+		where.sql(),
 	)
 	return s.Client().Exec(rawQuery).Error
 }
 
-func (s *JsonValueHolder) ExtractAll(path string, condition BoolExpr, scannerName string) (Cursor, error) {
+func (s *JsonValueHolder) FloatAt(path string, where BoolExpr) (Cursor, error) {
 	var rawQuery string
-	condition.setDialect(s.dialect)
+	where.setDialect(s.dialect)
 	if s.dialect == SQLite3 {
 		rawQuery = fmt.Sprintf("select json_extract(%s, '%s') from $table$ where %s;",
 			s.field,
 			path,
-			condition.sql(),
+			where.sql(),
 		)
 	} else {
 		rawQuery = fmt.Sprintf("select json_unquote(json_extract(%s, '%s')) from $table$ where %s;",
 			s.field,
 			path,
-			condition.sql(),
+			where.sql(),
 		)
 	}
-	return s.Client().Query(rawQuery, scannerName)
+	return s.Client().Query(rawQuery, FloatScanner)
 }
 
-func (s *JsonValueHolder) Search(condition BoolExpr, scannerName string) (Cursor, error) {
+func (s *JsonValueHolder) StringAt(path string, where BoolExpr) (Cursor, error) {
+	var rawQuery string
+	where.setDialect(s.dialect)
+	if s.dialect == SQLite3 {
+		rawQuery = fmt.Sprintf("select json_extract(%s, '%s') from $table$ where %s;",
+			s.field,
+			path,
+			where.sql(),
+		)
+	} else {
+		rawQuery = fmt.Sprintf("select json_unquote(json_extract(%s, '%s')) from $table$ where %s;",
+			s.field,
+			path,
+			where.sql(),
+		)
+	}
+	return s.Client().Query(rawQuery, StringScanner)
+}
+
+func (s *JsonValueHolder) IntAt(path string, where BoolExpr) (Cursor, error) {
+	var rawQuery string
+	where.setDialect(s.dialect)
+	if s.dialect == SQLite3 {
+		rawQuery = fmt.Sprintf("select json_extract(%s, '%s') from $table$ where %s;",
+			s.field,
+			path,
+			where.sql(),
+		)
+	} else {
+		rawQuery = fmt.Sprintf("select json_unquote(json_extract(%s, '%s')) from $table$ where %s;",
+			s.field,
+			path,
+			where.sql(),
+		)
+	}
+	return s.Client().Query(rawQuery, IntScanner)
+}
+
+func (s *JsonValueHolder) Where(condition BoolExpr) (Cursor, error) {
 	condition.setDialect(s.dialect)
 	rawQuery := fmt.Sprintf("select * from $table$ where %s;",
 		condition.sql(),
 	)
-	return s.Client().Query(rawQuery, scannerName)
+	return s.Client().Query(rawQuery, DoubleMapEntryScanner)
 }
 
-func (s *JsonValueHolder) SearchObjects(condition BoolExpr) (ObjectCursor, error) {
+func (s *JsonValueHolder) ValueWhere(condition BoolExpr) (Cursor, error) {
 	condition.setDialect(s.dialect)
-	rawQuery := fmt.Sprintf("select %s from $table$ where %s;",
-		s.field,
+	rawQuery := fmt.Sprintf("select value from $table$ where %s;",
 		condition.sql(),
 	)
-	return s.Client().QueryObjects(rawQuery)
+	return s.Client().Query(rawQuery, StringScanner)
 }
 
 func (s *JsonValueHolder) RangeOf(condition BoolExpr, scannerName string, offset, count int) (Cursor, error) {

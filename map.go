@@ -2,15 +2,20 @@ package bome
 
 import (
 	"context"
-	"github.com/omecodes/errors"
+	"encoding/json"
+	"fmt"
 	"log"
+	"reflect"
+
+	"github.com/omecodes/errors"
 )
 
 type Map struct {
-	tableName string
+	*DB
+	*JsonValueHolder
 	tx        *TX
 	dialect   string
-	*DB
+	tableName string
 }
 
 func (m *Map) Table() string {
@@ -38,6 +43,10 @@ func (m *Map) Transaction(ctx context.Context) (context.Context, *Map, error) {
 
 		newCtx := contextWithTransaction(ctx, tx)
 		return newCtx, &Map{
+			JsonValueHolder: &JsonValueHolder{
+				dialect: m.dialect,
+				tx:      tx,
+			},
 			tableName: m.tableName,
 			tx:        tx,
 			dialect:   m.dialect,
@@ -56,10 +65,28 @@ func (m *Map) Transaction(ctx context.Context) (context.Context, *Map, error) {
 	tx = tx.New(m.DB)
 	newCtx := contextWithTransaction(ctx, tx)
 	return newCtx, &Map{
+		JsonValueHolder: &JsonValueHolder{
+			dialect: m.dialect,
+			tx:      tx,
+		},
 		tableName: m.tableName,
 		tx:        tx,
 		dialect:   m.dialect,
 	}, nil
+}
+
+func (m *Map) Commit() error {
+	if m.tx != nil {
+		return m.tx.Commit()
+	}
+	return nil
+}
+
+func (m *Map) Rollback() error {
+	if m.tx != nil {
+		return m.tx.Rollback()
+	}
+	return nil
 }
 
 func (m *Map) Client() Client {
@@ -69,28 +96,46 @@ func (m *Map) Client() Client {
 	return m.DB
 }
 
-func (m *Map) Save(entry *MapEntry) error {
-	return m.Client().Exec("insert into $table$ values (?, ?);", entry.Key, entry.Value).Error
-}
-
-func (m *Map) Update(entry *MapEntry) error {
-	return m.Client().Exec("update $table$ set value=? where name=?;", entry.Value, entry.Key).Error
-}
-
-func (m *Map) Upsert(entry *MapEntry) error {
-	err := m.Save(entry)
-	if !isPrimaryKeyConstraintError(err) {
+func (m *Map) Save(key string, o interface{}, opts SaveOptions) error {
+	data, err := json.Marshal(o)
+	if err != nil {
 		return err
 	}
-	return m.Update(entry)
+
+	err = m.Client().Exec("insert into $table$ values (?, ?);", key, string(data)).Error
+	if opts.UpdateExisting && isPrimaryKeyConstraintError(err) {
+		return m.Client().Exec("update $table$ set value=? where name=?;", string(data), key).Error
+	}
+	return err
 }
 
-func (m *Map) Get(key string) (string, error) {
-	o, err := m.Client().QueryFirst("select value from $table$ where name=?;", StringScanner, key)
+func (m *Map) SaveRaw(key string, value string, opts SaveOptions) error {
+	err := m.Client().Exec("insert into $table$ values (?, ?);", key, value).Error
+	if opts.UpdateExisting && isPrimaryKeyConstraintError(err) {
+		return m.Client().Exec("update $table$ set value=? where name=?;", value, key).Error
+	}
+	return err
+}
+
+func (m *Map) Get(key string, o interface{}) error {
+	if o == nil {
+		o = reflect.New(reflect.TypeOf(o))
+	}
+
+	value, err := m.Client().QueryFirst("select value from $table$ where name=?;", StringScanner, key)
+	if err != nil {
+		return err
+	}
+
+	return json.Unmarshal([]byte(value.(string)), o)
+}
+
+func (m *Map) GetRaw(key string) (string, error) {
+	value, err := m.Client().QueryFirst("select value from $table$ where name=?;", StringScanner, key)
 	if err != nil {
 		return "", err
 	}
-	return o.(string), nil
+	return value.(string), nil
 }
 
 func (m *Map) Size(key string) (int64, error) {
@@ -133,7 +178,7 @@ func (m *Map) Range(offset, count int) ([]*MapEntry, error) {
 
 	var entries []*MapEntry
 	for c.HasNext() {
-		o, err := c.Next()
+		o, err := c.Entry()
 		if err != nil {
 			return nil, err
 		}
@@ -158,16 +203,78 @@ func (m *Map) Close() error {
 	return m.DB.sqlDb.Close()
 }
 
-func (m *Map) Commit() error {
-	if m.tx != nil {
-		return m.tx.Commit()
+func (m *Map) Count() (int64, error) {
+	o, err := m.Client().QueryFirst("select count(*) from $table$;", IntScanner)
+	if err != nil {
+		return 0, err
 	}
-	return nil
+	return o.(int64), nil
 }
 
-func (m *Map) Rollback() error {
-	if m.tx != nil {
-		return m.tx.Rollback()
+func (m *Map) EditAll(path string, ex Expression) error {
+	rawQuery := fmt.Sprintf(
+		"update $table$ set value=json_set(value, '%s', %s);",
+		normalizedJsonPath(path),
+		ex.eval(),
+	)
+	return m.Client().Exec(rawQuery).Error
+}
+
+func (m *Map) EditAllMatching(path string, ex Expression, condition BoolExpr) error {
+	rawQuery := fmt.Sprintf(
+		"update $table$ set value=json_set(value, '%s', %s) where %s",
+		normalizedJsonPath(path),
+		ex.eval(),
+		condition.sql(),
+	)
+	return m.Client().Exec(rawQuery).Error
+}
+
+func (m *Map) ExtractAll(path string, condition BoolExpr, scannerName string) (Cursor, error) {
+	var rawQuery string
+
+	if m.dialect == SQLite3 {
+		rawQuery = fmt.Sprintf("select json_extract(value, '%s') from $table$ where %s;",
+			path,
+			condition.sql(),
+		)
+	} else {
+		rawQuery = fmt.Sprintf("select json_unquote(json_extract(value, '%s')) from $table$ where %s;",
+			path,
+			condition.sql(),
+		)
 	}
-	return nil
+
+	return m.Client().Query(rawQuery, scannerName)
+}
+
+func (m *Map) RangeOf(condition BoolExpr, scannerName string, offset, count int) (Cursor, error) {
+	rawQuery := fmt.Sprintf("select * from $table$ where %s limit ?, ?;",
+		condition.sql(),
+	)
+	return m.Client().Query(rawQuery, scannerName, offset, count)
+}
+
+func (m *Map) EditAt(key string, path string, ex Expression) error {
+	ex.setDialect(m.dialect)
+	rawQuery := fmt.Sprintf("update $table$ set value=json_set(value, '%s', %s) where name=?;",
+		normalizedJsonPath(path),
+		ex.eval())
+	return m.Client().Exec(rawQuery, key).Error
+}
+
+func (m *Map) ExtractAt(key string, path string) (string, error) {
+	var rawQuery string
+
+	if m.dialect == SQLite3 {
+		rawQuery = fmt.Sprintf("select json_extract(value, '%s') from $table$ where name=?;", path)
+	} else {
+		rawQuery = fmt.Sprintf("select json_unquote(json_extract(value, '%s')) from $table$ where name=?;", path)
+	}
+
+	o, err := m.Client().QueryFirst(rawQuery, StringScanner, key)
+	if err != nil {
+		return "", err
+	}
+	return o.(string), nil
 }

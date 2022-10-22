@@ -2,17 +2,18 @@ package bome
 
 import (
 	"database/sql"
-	"github.com/omecodes/errors"
 	"strings"
+
+	"github.com/omecodes/errors"
 )
 
-// TX is a transaction token
+// TX is a transaction token.
 type TX struct {
 	db *DB
 	*sql.Tx
 }
 
-// New creates a new TX with the passed DB
+// New creates a new TX with the passed DB.
 func (tx *TX) New(db *DB) *TX {
 	return &TX{
 		db: db,
@@ -20,7 +21,7 @@ func (tx *TX) New(db *DB) *TX {
 	}
 }
 
-//Exec executes the statement saved as name
+// Exec executes the statement saved as name.
 func (tx *TX) Exec(query string, args ...interface{}) Result {
 	for name, value := range tx.db.vars {
 		query = strings.Replace(query, name, value, -1)
@@ -36,7 +37,7 @@ func (tx *TX) Exec(query string, args ...interface{}) Result {
 	return result
 }
 
-//Query executes the query statement saved as name
+// Query executes the query statement saved as name.
 func (tx *TX) Query(query string, scannerName string, args ...interface{}) (Cursor, error) {
 	for name, value := range tx.db.vars {
 		query = strings.Replace(query, name, value, -1)
@@ -53,8 +54,8 @@ func (tx *TX) Query(query string, scannerName string, args ...interface{}) (Curs
 }
 
 // QueryObjects executes a raw query.
-// scannerName: is one of the registered scanner name
-func (tx *TX) QueryObjects(query string, params ...interface{}) (ObjectCursor, error) {
+// scannerName: is one of the registered scanner name.
+func (tx *TX) QueryObjects(query string, params ...interface{}) (Cursor, error) {
 	for name, value := range tx.db.vars {
 		query = strings.Replace(query, name, value, -1)
 	}
@@ -66,10 +67,10 @@ func (tx *TX) QueryObjects(query string, params ...interface{}) (ObjectCursor, e
 	if err != nil {
 		return nil, err
 	}
-	return &objectCursor{rows: rows, scanner: scanner}, nil
+	return &cursor{rows: rows, scanner: scanner}, nil
 }
 
-// QueryFirst get the first result of the query statement saved as name
+// QueryFirst get the first result of the query statement saved as name.
 func (tx *TX) QueryFirst(query string, scannerName string, args ...interface{}) (interface{}, error) {
 	for name, value := range tx.db.vars {
 		query = strings.Replace(query, name, value, -1)
@@ -92,15 +93,15 @@ func (tx *TX) QueryFirst(query string, scannerName string, args ...interface{}) 
 	if !cursor.HasNext() {
 		return nil, errors.NotFound()
 	}
-	return cursor.Next()
+	return cursor.Entry()
 }
 
-// Commit commits the transaction
+// Commit commits the transaction.
 func (tx *TX) Commit() error {
 	return tx.Tx.Commit()
 }
 
-// Rollback reverts all changes operated during the transaction
+// Rollback reverts all changes operated during the transaction.
 func (tx *TX) Rollback() error {
 	return tx.Tx.Rollback()
 }

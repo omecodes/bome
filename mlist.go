@@ -2,28 +2,34 @@ package bome
 
 import (
 	"context"
-	"github.com/omecodes/errors"
+	"encoding/json"
+	"fmt"
 	"log"
+	"reflect"
+
+	"github.com/omecodes/errors"
 )
 
-type MappingList struct {
+type MList struct {
 	tableName string
 	dialect   string
 	*DB
+	*JsonValueHolder
+	*MList
 	tx *TX
 }
 
-func (l *MappingList) Table() string {
+func (l *MList) Table() string {
 	return l.tableName
 }
 
-func (l *MappingList) Keys() []string {
+func (l *MList) Keys() []string {
 	return []string{
-		"ind",
+		"first_key", "second_key",
 	}
 }
 
-func (l *MappingList) Transaction(ctx context.Context) (context.Context, *MappingList, error) {
+func (l *MList) Transaction(ctx context.Context) (context.Context, *MList, error) {
 	tx := transaction(ctx)
 	if tx == nil {
 		if l.tx != nil {
@@ -37,7 +43,16 @@ func (l *MappingList) Transaction(ctx context.Context) (context.Context, *Mappin
 		}
 
 		newCtx := contextWithTransaction(ctx, tx)
-		return newCtx, &MappingList{
+		return newCtx, &MList{
+			JsonValueHolder: &JsonValueHolder{
+				dialect: l.dialect,
+				tx:      tx,
+			},
+			MList: &MList{
+				tableName: l.tableName,
+				dialect:   l.dialect,
+				tx:        tx,
+			},
 			tableName: l.tableName,
 			tx:        tx,
 			dialect:   l.dialect,
@@ -52,32 +67,109 @@ func (l *MappingList) Transaction(ctx context.Context) (context.Context, *Mappin
 		}
 		return ctx, l, nil
 	}
-
 	tx = tx.New(l.DB)
 	newCtx := contextWithTransaction(ctx, tx)
-	return newCtx, &MappingList{
+	return newCtx, &MList{
+		JsonValueHolder: &JsonValueHolder{
+			dialect: l.dialect,
+			tx:      tx,
+		},
+		MList: &MList{
+			tableName: l.tableName,
+			dialect:   l.dialect,
+			tx:        tx,
+		},
 		tableName: l.tableName,
 		tx:        tx,
 		dialect:   l.dialect,
 	}, nil
 }
 
-func (l *MappingList) Client() Client {
+func (l *MList) Commit() error {
+	if l.tx != nil {
+		return l.tx.Commit()
+	}
+	return nil
+}
+
+func (l *MList) Rollback() error {
+	if l.tx != nil {
+		return l.tx.Rollback()
+	}
+	return nil
+}
+
+func (l *MList) Client() Client {
 	if l.tx != nil {
 		return l.tx
 	}
 	return l.DB
 }
 
-func (l *MappingList) Save(entry *PairListEntry) error {
+func (l *MList) Write(index int64, key string, o interface{}) error {
+	data, err := json.Marshal(o)
+	if err != nil {
+		return err
+	}
+
+	return l.Save(&PairListEntry{
+		Index: index,
+		Key:   key,
+		Value: string(data),
+	})
+}
+
+func (l *MList) Read(key string, o interface{}) error {
+	if o == nil {
+		o = reflect.New(reflect.TypeOf(o))
+	}
+	entry, err := l.Get(key)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal([]byte(entry.Value), o)
+}
+
+func (l *MList) EditAt(key string, path string, ex Expression) error {
+	ex.setDialect(l.dialect)
+	rawQuery := fmt.Sprintf("update $table$ set value=json_set(value, '%s', \"%s\") where name=?;",
+		normalizedJsonPath(path),
+		ex.eval(),
+	)
+	return l.Client().Exec(rawQuery, key).Error
+}
+
+func (l *MList) ExtractAt(key string, path string) (string, error) {
+	var rawQuery string
+
+	if l.dialect == SQLite3 {
+		rawQuery = fmt.Sprintf(
+			"select json_extract(value, '%s') from $table$ where name=?;", path)
+	} else {
+		rawQuery = fmt.Sprintf(
+			"select json_unquote(json_extract(value, '%s')) from $table$ where name=?;", path)
+	}
+
+	o, err := l.Client().QueryFirst(rawQuery, StringScanner, key)
+	if err != nil {
+		return "", err
+	}
+	return o.(string), nil
+}
+
+func (l *MList) Close() error {
+	return l.DB.sqlDb.Close()
+}
+
+func (l *MList) Save(entry *PairListEntry) error {
 	return l.Client().Exec("insert into $table$ values (?, ?, ?);", entry.Index, entry.Key, entry.Value).Error
 }
 
-func (l *MappingList) Update(key string, value string) error {
+func (l *MList) Update(key string, value string) error {
 	return l.Client().Exec("update $table$ set value=? where name=?;", value, key).Error
 }
 
-func (l *MappingList) Upsert(entry *PairListEntry) error {
+func (l *MList) Upsert(entry *PairListEntry) error {
 	err := l.Save(entry)
 	if !isPrimaryKeyConstraintError(err) {
 		return err
@@ -85,7 +177,7 @@ func (l *MappingList) Upsert(entry *PairListEntry) error {
 	return l.Update(entry.Key, entry.Value)
 }
 
-func (l *MappingList) Get(key string) (*ListEntry, error) {
+func (l *MList) Get(key string) (*ListEntry, error) {
 	o, err := l.Client().QueryFirst("select ind, value from $table$ where name=?;", ListEntryScanner, key)
 	if err != nil {
 		return nil, err
@@ -93,7 +185,7 @@ func (l *MappingList) Get(key string) (*ListEntry, error) {
 	return o.(*ListEntry), nil
 }
 
-func (l *MappingList) MinIndex() (int64, error) {
+func (l *MList) MinIndex() (int64, error) {
 	res, err := l.Client().QueryFirst("select min(ind) from $table$;", IntScanner)
 	if err != nil {
 		return 0, err
@@ -101,7 +193,7 @@ func (l *MappingList) MinIndex() (int64, error) {
 	return res.(int64), nil
 }
 
-func (l *MappingList) MaxIndex() (int64, error) {
+func (l *MList) MaxIndex() (int64, error) {
 	res, err := l.Client().QueryFirst("select max(ind) from $table$;", IntScanner)
 	if err != nil {
 		return 0, err
@@ -109,7 +201,7 @@ func (l *MappingList) MaxIndex() (int64, error) {
 	return res.(int64), nil
 }
 
-func (l *MappingList) Count() (int64, error) {
+func (l *MList) Count() (int64, error) {
 	res, err := l.Client().QueryFirst("select count(ind) from $table$;", IntScanner)
 	if err != nil {
 		return 0, err
@@ -117,7 +209,7 @@ func (l *MappingList) Count() (int64, error) {
 	return res.(int64), nil
 }
 
-func (l *MappingList) SizeAt(index int64) (int64, error) {
+func (l *MList) SizeAt(index int64) (int64, error) {
 	o, err := l.Client().QueryFirst("select coalesce(length(value)), 0) from $table$ where ind=?;", IntScanner, index)
 	if err != nil {
 		return 0, err
@@ -125,7 +217,7 @@ func (l *MappingList) SizeAt(index int64) (int64, error) {
 	return o.(int64), nil
 }
 
-func (l *MappingList) TotalSize() (int64, error) {
+func (l *MList) TotalSize() (int64, error) {
 	o, err := l.Client().QueryFirst("select coalesce(sum(length(value)), 0) from $table$;", IntScanner)
 	if err != nil {
 		return 0, err
@@ -133,7 +225,7 @@ func (l *MappingList) TotalSize() (int64, error) {
 	return o.(int64), nil
 }
 
-func (l *MappingList) GetNextFromSeq(index int64) (*PairListEntry, error) {
+func (l *MList) GetNextFromSeq(index int64) (*PairListEntry, error) {
 	o, err := l.Client().QueryFirst("select * from $table$ where ind>? order by ind;", PairListEntryScanner, index)
 	if err != nil {
 		return nil, err
@@ -141,7 +233,7 @@ func (l *MappingList) GetNextFromSeq(index int64) (*PairListEntry, error) {
 	return o.(*PairListEntry), nil
 }
 
-func (l *MappingList) RangeFromIndex(index int64, offset, count int) ([]*PairListEntry, error) {
+func (l *MList) RangeFromIndex(index int64, offset, count int) ([]*PairListEntry, error) {
 	c, err := l.Client().Query("select * from $table$ where ind>? order by ind limit ?, ?;", PairListEntryScanner, index, offset, count)
 	if err != nil {
 		return nil, err
@@ -155,7 +247,7 @@ func (l *MappingList) RangeFromIndex(index int64, offset, count int) ([]*PairLis
 
 	var entries []*PairListEntry
 	for c.HasNext() {
-		o, err := c.Next()
+		o, err := c.Entry()
 		if err != nil {
 			return nil, err
 		}
@@ -164,7 +256,7 @@ func (l *MappingList) RangeFromIndex(index int64, offset, count int) ([]*PairLis
 	return entries, nil
 }
 
-func (l *MappingList) Range(offset, count int) ([]*PairListEntry, error) {
+func (l *MList) Range(offset, count int) ([]*PairListEntry, error) {
 	c, err := l.Client().Query("select * from $table$ order by ind limit ?, ?;", PairListEntryScanner, offset, count)
 	if err != nil {
 		return nil, err
@@ -178,7 +270,7 @@ func (l *MappingList) Range(offset, count int) ([]*PairListEntry, error) {
 
 	var entries []*PairListEntry
 	for c.HasNext() {
-		o, err := c.Next()
+		o, err := c.Entry()
 		if err != nil {
 			return nil, err
 		}
@@ -187,7 +279,7 @@ func (l *MappingList) Range(offset, count int) ([]*PairListEntry, error) {
 	return entries, nil
 }
 
-func (l *MappingList) IndexInRange(after, before int64) (Cursor, int64, error) {
+func (l *MList) IndexInRange(after, before int64) (Cursor, int64, error) {
 	var (
 		total int64
 		c     Cursor
@@ -207,7 +299,7 @@ func (l *MappingList) IndexInRange(after, before int64) (Cursor, int64, error) {
 	return c, total, nil
 }
 
-func (l *MappingList) IndexBefore(index int64) (Cursor, int64, error) {
+func (l *MList) IndexBefore(index int64) (Cursor, int64, error) {
 	o, err := l.Client().QueryFirst("select count(ind) from $table$ where ind<?;", IntScanner, index)
 	if err != nil {
 		return nil, 0, err
@@ -217,7 +309,7 @@ func (l *MappingList) IndexBefore(index int64) (Cursor, int64, error) {
 	return cursor, total, err
 }
 
-func (l *MappingList) IndexAfter(index int64) (Cursor, int64, error) {
+func (l *MList) IndexAfter(index int64) (Cursor, int64, error) {
 	o, err := l.Client().QueryFirst("select count(ind) from $table$ where ind>?;", IntScanner, index)
 	if err != nil {
 		return nil, 0, err
@@ -227,11 +319,11 @@ func (l *MappingList) IndexAfter(index int64) (Cursor, int64, error) {
 	return cursor, total, err
 }
 
-func (l *MappingList) DeleteAt(index int64) error {
+func (l *MList) DeleteAt(index int64) error {
 	return l.Client().Exec("delete from $table$ where ind=?;", index).Error
 }
 
-func (l *MappingList) Size(key string) (int64, error) {
+func (l *MList) Size(key string) (int64, error) {
 	o, err := l.Client().QueryFirst("select coalesce(length(value), 0) from $table$ where name=?;", IntScanner, key)
 	if err != nil {
 		return 0, err
@@ -239,7 +331,7 @@ func (l *MappingList) Size(key string) (int64, error) {
 	return o.(int64), nil
 }
 
-func (l *MappingList) Contains(key string) (bool, error) {
+func (l *MList) Contains(key string) (bool, error) {
 	res, err := l.Client().QueryFirst("select 1 from $table$ where name=?;", BoolScanner, key)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -250,32 +342,14 @@ func (l *MappingList) Contains(key string) (bool, error) {
 	return res.(bool), nil
 }
 
-func (l *MappingList) Delete(key string) error {
+func (l *MList) Delete(key string) error {
 	return l.Client().Exec("delete from $table$ where name=?;", key).Error
 }
 
-func (l *MappingList) List() (Cursor, error) {
+func (l *MList) List() (Cursor, error) {
 	return l.Client().Query("select * from $table$;", PairListEntryScanner)
 }
 
-func (l *MappingList) Clear() error {
+func (l *MList) Clear() error {
 	return l.Client().Exec("delete from $table$;").Error
-}
-
-func (l *MappingList) Close() error {
-	return l.DB.sqlDb.Close()
-}
-
-func (l *MappingList) Commit() error {
-	if l.tx != nil {
-		return l.tx.Commit()
-	}
-	return nil
-}
-
-func (l *MappingList) Rollback() error {
-	if l.tx != nil {
-		return l.tx.Rollback()
-	}
-	return nil
 }

@@ -30,7 +30,7 @@ var (
 	doc3 = `{
 	"name": "akam", 
 	"age": 35,
-	"profession": "Assistante sociale",
+	"profession": "Assistance sociale",
  	"address": {
 		"city": "Bonoua",
 		"region": "Region des lagunes"
@@ -44,7 +44,7 @@ var (
 func init() {
 	testDBPath = os.Getenv("BOME_TESTS_DB")
 	if testDBPath == "" {
-		testDBPath = ":memory:"
+		testDBPath = ":memory"
 	}
 
 	testDialect = os.Getenv("BOME_TESTS_DIALECT")
